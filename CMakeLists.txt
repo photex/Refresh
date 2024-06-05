@@ -69,14 +69,9 @@ add_library(Refresh
 	src/d3d11/Refresh_d3d11.c
 	src/d3d11/Refresh_d3d11_d3dcompiler.c
 	src/vulkan/Refresh_vulkan.c
+	src/metal/Refresh_metal.m
 	src/Refresh_image.c
 )
-
-if (APPLE)
-    add_library(Refresh
-        src/metal/Refresh_metal.m
-    )
-endif()
 
 # Build flags
 if(NOT MSVC)
