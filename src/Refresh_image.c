@@ -1,6 +1,6 @@
-/* Refresh - XNA-inspired 3D Graphics Library with modern capabilities
+/* Refresh - a cross-platform hardware-accelerated graphics library with modern capabilities
  *
- * Copyright (c) 2020 Ethan Lee and Evan Hemsley
+ * Copyright (c) 2020-2024 Evan Hemsley
  *
  * This software is provided 'as-is', without any express or implied warranty.
  * In no event will the authors be held liable for any damages arising from
@@ -20,11 +20,8 @@
  *
  * 3. This notice may not be removed or altered from any source distribution.
  *
- * Ethan "flibitijibibo" Lee <flibitijibibo@flibitijibibo.com>
  * Evan "cosmonaut" Hemsley <evan@moonside.games>
  *
- * This source file is heavily borrowed from FNA3D_Image.h and was originally
- * written by Ethan Lee.
  */
 
 #include "Refresh_image.h"
@@ -232,6 +229,35 @@ uint8_t* Refresh_Image_Load(
 
 	return result;
 }
+
+SDL_bool Refresh_Image_Info(
+	uint8_t *bufferPtr,
+	int32_t bufferLength,
+	int32_t *w,
+	int32_t *h,
+	int32_t *len
+) {
+	int32_t format;
+	int32_t result;
+
+	result = stbi_info_from_memory(
+		bufferPtr,
+		bufferLength,
+		w,
+		h,
+		&format
+	);
+
+	if (result == 0)
+	{
+		SDL_LogWarn(SDL_LOG_CATEGORY_ERROR, "Image info failed: %s", stbi_failure_reason());
+	}
+
+	*len = (*w) * (*h) * 4;
+
+	return result;
+}
+
 
 void Refresh_Image_Free(uint8_t *mem)
 {

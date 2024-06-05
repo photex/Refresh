@@ -1,6 +1,6 @@
-/* Refresh - XNA-inspired 3D Graphics Library with modern capabilities
+/* Refresh - a cross-platform hardware-accelerated graphics library with modern capabilities
  *
- * Copyright (c) 2020 Ethan Lee and Evan Hemsley
+ * Copyright (c) 2020-2024 Evan Hemsley
  *
  * This software is provided 'as-is', without any express or implied warranty.
  * In no event will the authors be held liable for any damages arising from
@@ -20,15 +20,14 @@
  *
  * 3. This notice may not be removed or altered from any source distribution.
  *
- * Ethan "flibitijibibo" Lee <flibitijibibo@flibitijibibo.com>
  * Evan "cosmonaut" Hemsley <evan@moonside.games>
  *
- * This source file is heavily borrowed from FNA3D_Image.h and was originally
- * written by Ethan Lee.
  */
 
 #ifndef REFRESH_IMAGE_H
 #define REFRESH_IMAGE_H
+
+#include <SDL_stdinc.h>
 
 #ifdef _WIN32
 #define REFRESHAPI __declspec(dllexport)
@@ -56,6 +55,20 @@ extern "C" {
  * Be sure to free the memory with Refresh_Image_Free after use!
  */
 REFRESHAPI uint8_t* Refresh_Image_Load(
+	uint8_t *bufferPtr,
+	int32_t bufferLength,
+	int32_t *w,
+	int32_t *h,
+	int32_t *len
+);
+
+/* Get image dimensions without fully decoding the image.
+ *
+ * w:		    Filled with the width of the image.
+ * h:		    Filled with the height of the image.
+ * len:			Filled with the length of pixel data in bytes.
+ */
+REFRESHAPI SDL_bool Refresh_Image_Info(
 	uint8_t *bufferPtr,
 	int32_t bufferLength,
 	int32_t *w,
