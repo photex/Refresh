@@ -2848,7 +2848,7 @@ static Refresh_Shader* METAL_CompileFromSPIRVCross(
 static SDL_bool METAL_PrepareDriver()
 {
     /* FIXME: Add a macOS / iOS version check! Maybe support >= 10.14? */
-    return (_this->Metal_CreateView != NULL);
+    return 1;
 }
 
 static Refresh_Device* METAL_CreateDevice(SDL_bool debugMode)
