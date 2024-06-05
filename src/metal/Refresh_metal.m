@@ -2401,7 +2401,7 @@ static int METAL_QueryFence(
 
 static MetalWindowData* METAL_INTERNAL_FetchWindowData(SDL_Window *window)
 {
-    return (WindowData*) SDL_GetWindowData(window, WINDOW_PROPERTY_DATA);
+    return (MetalWindowData*) SDL_GetWindowData(window, WINDOW_PROPERTY_DATA);
 }
 
 static SDL_bool METAL_SupportsSwapchainComposition(
