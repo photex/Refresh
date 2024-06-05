@@ -54,7 +54,7 @@ if (APPLE)
 endif()
 
 # Source lists
-add_library(Refresh
+set(Refresh_source
 	# Public Headers
 	include/Refresh.h
 	include/Refresh_image.h
@@ -69,9 +69,14 @@ add_library(Refresh
 	src/d3d11/Refresh_d3d11.c
 	src/d3d11/Refresh_d3d11_d3dcompiler.c
 	src/vulkan/Refresh_vulkan.c
-	src/metal/Refresh_metal.m
 	src/Refresh_image.c
 )
+
+if (APPLE)
+	set(Refresh_source ${Refresh_source} src/metal/Refresh_metal.m)
+endif()
+
+add_library(Refresh ${Refresh_source})
 
 # Build flags
 if(NOT MSVC)
