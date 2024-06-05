@@ -1,7 +1,10 @@
 # CMake Project for Refresh
 # Written by @thatcosmonaut
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.16)
 project(Refresh C)
+
+include(CheckCCompilerFlag)
+include(CMakePushCheckState)
 
 # Options
 option(BUILD_SHARED_LIBS "Build shared library" ON)
@@ -100,7 +103,21 @@ if(MINGW)
 	target_link_libraries(Refresh PRIVATE -static-libgcc)
 endif()
 
+# ARC
 if (APPLE)
+	cmake_push_check_state(RESET)
+	check_c_compiler_flag(-fobjc-arc COMPILER_SUPPORTS_FOBJC_ARC)
+	cmake_pop_check_state()
+
+	if(NOT COMPILER_SUPPORTS_FOBJC_ARC)
+		message(FATAL_ERROR "Compiler does not support -fobc-arc: this is required on Apple")
+	endif()
+	set_property(TARGET Refresh PROPERTY COMPILE_FLAGS "-fobjc-arc")
+endif()
+
+# Link Foundation and Metal
+if (APPLE)
+	target_link_libraries(Refresh PRIVATE "-Wl,-framework,Foundation")
 	if(IOS OR TVOS OR VISIONOS OR WATCHOS)
 		target_link_libraries(Refresh PRIVATE "-Wl,-framework,Metal")
 	else()
