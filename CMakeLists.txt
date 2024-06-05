@@ -100,6 +100,14 @@ if(MINGW)
 	target_link_libraries(Refresh PRIVATE -static-libgcc)
 endif()
 
+if (APPLE)
+	if(IOS OR TVOS OR VISIONOS OR WATCHOS)
+		sdl_link_dependency(Refresh LINK_OPTIONS "-Wl,-framework,Metal")
+	else()
+		sdl_link_dependency(Refresh LINK_OPTIONS "-Wl,-weak_framework,Metal")
+	endif()
+endif()
+
 # Soname
 set_target_properties(Refresh PROPERTIES OUTPUT_NAME "Refresh"
 	VERSION ${LIB_VERSION}
