@@ -27,7 +27,7 @@
  * written by Ethan Lee.
  */
 
-#include "Refresh_Image.h"
+#include "Refresh_image.h"
 
 #include <SDL.h>
 
@@ -137,6 +137,7 @@ SDL_SIMDRealloc(void *mem, const size_t len)
 
 #define STB_IMAGE_STATIC
 #define STBI_NO_HDR
+#define STBI_NO_GIF
 #define STBI_ASSERT SDL_assert
 #define STBI_MALLOC SDL_SIMDAlloc
 #define STBI_REALLOC SDL_SIMDRealloc

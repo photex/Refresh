@@ -1,6 +1,6 @@
-﻿/* Refresh - XNA-inspired 3D Graphics Library with modern capabilities
+﻿/* Refresh - a cross-platform hardware-accelerated graphics library with modern capabilities
  *
- * Copyright (c) 2020 Evan Hemsley
+ * Copyright (c) 2020-2024 Evan Hemsley
  *
  * This software is provided 'as-is', without any express or implied warranty.
  * In no event will the authors be held liable for any damages arising from
@@ -24,374 +24,417 @@
  *
  */
 
-#include "Refresh_Driver.h"
+#include "Refresh_driver.h"
+#include "Refresh_spirv_c.h"
 
-#include <SDL.h>
+#define NULL_ASSERT(name) SDL_assert(name != NULL);
 
-#define NULL_RETURN(name) if (name == NULL) { return; }
-#define NULL_RETURN_NULL(name) if (name == NULL) { return NULL; }
+#define CHECK_COMMAND_BUFFER \
+    if (commandBuffer == NULL) { return; } \
+    if (((CommandBufferCommonHeader*) commandBuffer)->submitted) \
+    { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Command buffer already submitted!"); \
+        return; \
+    }
+
+#define CHECK_COMMAND_BUFFER_RETURN_NULL \
+    if (commandBuffer == NULL) { return NULL; } \
+    if (((CommandBufferCommonHeader*) commandBuffer)->submitted) \
+    { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Command buffer already submitted!"); \
+        return NULL; \
+    }
+
+#define CHECK_ANY_PASS_IN_PROGRESS \
+    if ( \
+        ((CommandBufferCommonHeader*) commandBuffer)->renderPass.inProgress || \
+        ((CommandBufferCommonHeader*) commandBuffer)->computePass.inProgress || \
+        ((CommandBufferCommonHeader*) commandBuffer)->copyPass.inProgress ) \
+    { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Pass already in progress!"); \
+        return NULL; \
+    }
+
+#define CHECK_RENDERPASS \
+    if (!((Pass*) renderPass)->inProgress) { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Render pass not in progress!"); \
+        return; \
+    }
+
+#define CHECK_GRAPHICS_PIPELINE_BOUND \
+    if (!((CommandBufferCommonHeader*) RENDERPASS_COMMAND_BUFFER)->graphicsPipelineBound) { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Graphics pipeline not bound!"); \
+        return; \
+    }
+
+#define CHECK_COMPUTEPASS \
+    if (!((Pass*) computePass)->inProgress) { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Compute pass not in progress!"); \
+        return; \
+    }
+
+#define CHECK_COMPUTE_PIPELINE_BOUND \
+    if (!((CommandBufferCommonHeader*) COMPUTEPASS_COMMAND_BUFFER)->computePipelineBound) { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Compute pipeline not bound!"); \
+        return; \
+    }
+
+#define CHECK_COPYPASS \
+    if (!((Pass*) copyPass)->inProgress) { \
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Copy pass not in progress!"); \
+        return; \
+    } \
+
+#define COMMAND_BUFFER_DEVICE \
+    ((CommandBufferCommonHeader*) commandBuffer)->device
+
+#define RENDERPASS_COMMAND_BUFFER \
+    ((Pass*) renderPass)->commandBuffer
+
+#define RENDERPASS_DEVICE \
+    ((CommandBufferCommonHeader*) RENDERPASS_COMMAND_BUFFER)->device
+
+#define COMPUTEPASS_COMMAND_BUFFER \
+    ((Pass*) computePass)->commandBuffer
+
+#define COMPUTEPASS_DEVICE \
+    ((CommandBufferCommonHeader*) COMPUTEPASS_COMMAND_BUFFER)->device
+
+#define COPYPASS_COMMAND_BUFFER \
+    ((Pass*) copyPass)->commandBuffer
+
+#define COPYPASS_DEVICE \
+    ((CommandBufferCommonHeader*) COPYPASS_COMMAND_BUFFER)->device
 
 /* Drivers */
 
-#ifdef REFRESH_DRIVER_VULKAN
-	#define VULKAN_DRIVER &VulkanDriver
-#else
-	#define VULKAN_DRIVER NULL
-#endif
-
-#ifdef REFRESH_DRIVER_PS5
-	#define PS5_DRIVER &PS5Driver
-#else
-	#define PS5_DRIVER NULL
-#endif
-
 static const Refresh_Driver *backends[] = {
-	NULL,
-	VULKAN_DRIVER,
-	PS5_DRIVER
+#if REFRESH_VULKAN
+	&VulkanDriver,
+#endif
+#if REFRESH_D3D11
+	&D3D11Driver,
+#endif
+#if REFRESH_METAL
+	&MetalDriver,
+#endif
+	NULL
 };
-
-/* Logging */
-
-static void Refresh_Default_LogInfo(const char *msg)
-{
-	SDL_LogInfo(
-		SDL_LOG_CATEGORY_APPLICATION,
-		"%s",
-		msg
-	);
-}
-
-static void Refresh_Default_LogWarn(const char *msg)
-{
-	SDL_LogWarn(
-		SDL_LOG_CATEGORY_APPLICATION,
-		"%s",
-		msg
-	);
-}
-
-static void Refresh_Default_LogError(const char *msg)
-{
-	SDL_LogError(
-		SDL_LOG_CATEGORY_APPLICATION,
-		"%s",
-		msg
-	);
-}
-
-static Refresh_LogFunc Refresh_LogInfoFunc = Refresh_Default_LogInfo;
-static Refresh_LogFunc Refresh_LogWarnFunc = Refresh_Default_LogWarn;
-static Refresh_LogFunc Refresh_LogErrorFunc = Refresh_Default_LogError;
-
-#define MAX_MESSAGE_SIZE 1024
-
-void Refresh_LogInfo(const char *fmt, ...)
-{
-	char msg[MAX_MESSAGE_SIZE];
-	va_list ap;
-	va_start(ap, fmt);
-	SDL_vsnprintf(msg, sizeof(msg), fmt, ap);
-	va_end(ap);
-	Refresh_LogInfoFunc(msg);
-}
-
-void Refresh_LogWarn(const char *fmt, ...)
-{
-	char msg[MAX_MESSAGE_SIZE];
-	va_list ap;
-	va_start(ap, fmt);
-	SDL_vsnprintf(msg, sizeof(msg), fmt, ap);
-	va_end(ap);
-	Refresh_LogWarnFunc(msg);
-}
-
-void Refresh_LogError(const char *fmt, ...)
-{
-	char msg[MAX_MESSAGE_SIZE];
-	va_list ap;
-	va_start(ap, fmt);
-	SDL_vsnprintf(msg, sizeof(msg), fmt, ap);
-	va_end(ap);
-	Refresh_LogErrorFunc(msg);
-}
-
-#undef MAX_MESSAGE_SIZE
-
-void Refresh_HookLogFunctions(
-	Refresh_LogFunc info,
-	Refresh_LogFunc warn,
-	Refresh_LogFunc error
-) {
-	Refresh_LogInfoFunc = info;
-	Refresh_LogWarnFunc = warn;
-	Refresh_LogErrorFunc = error;
-}
-
-/* Version API */
-
-uint32_t Refresh_LinkedVersion(void)
-{
-	return REFRESH_COMPILED_VERSION;
-}
 
 /* Driver Functions */
 
-static Refresh_Backend selectedBackend = REFRESH_BACKEND_INVALID;
-
-Refresh_Backend Refresh_SelectBackend(Refresh_Backend preferredBackend, uint32_t *flags)
+static Refresh_Backend Refresh_SelectBackend(Refresh_Backend preferredBackends)
 {
-	uint32_t i;
+	Uint32 i;
 
-	if (preferredBackend != REFRESH_BACKEND_DONTCARE)
+	/* Environment override... */
+	const char *gpudriver = SDL_GetHint("REFRESH_HINT_BACKEND");
+	if (gpudriver != NULL)
 	{
-		if (backends[preferredBackend] == NULL)
+		for (i = 0; backends[i]; i += 1)
 		{
-			Refresh_LogWarn("Preferred backend was not compiled into this binary! Attempting to fall back!");
+			if (SDL_strcasecmp(gpudriver, backends[i]->Name) == 0 && backends[i]->PrepareDriver())
+			{
+				return backends[i]->backendflag;
+			}
 		}
-		else if (backends[preferredBackend]->PrepareDriver(flags))
+
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "REFRESH_HINT_BACKEND %s unsupported!", gpudriver);
+		return REFRESH_BACKEND_INVALID;
+	}
+
+	/* Preferred backends... */
+	if (preferredBackends != REFRESH_BACKEND_INVALID)
+	{
+		for (i = 0; backends[i]; i += 1)
 		{
-			selectedBackend = preferredBackend;
-			return selectedBackend;
+			if ((preferredBackends & backends[i]->backendflag) && backends[i]->PrepareDriver())
+			{
+				return backends[i]->backendflag;
+			}
+		}
+		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "No preferred Refresh backend found!");
+	}
+
+	/* ... Fallback backends */
+	for (i = 0; backends[i]; i += 1)
+	{
+		if (backends[i]->PrepareDriver())
+		{
+			return backends[i]->backendflag;
 		}
 	}
 
-	/* Iterate until we find an appropriate backend. */
-
-	for (i = 1; i < SDL_arraysize(backends); i += 1)
-	{
-		if (i != preferredBackend && backends[i] != NULL && backends[i]->PrepareDriver(flags))
-		{
-			selectedBackend = i;
-			return i;
-		}
-	}
-
-	if (backends[i] == NULL)
-	{
-		Refresh_LogError("No supported Refresh backend found!");
-	}
-
-	selectedBackend = REFRESH_BACKEND_INVALID;
+	SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No supported Refresh backend found!");
 	return REFRESH_BACKEND_INVALID;
 }
 
 Refresh_Device* Refresh_CreateDevice(
-	uint8_t debugMode
+	Refresh_Backend preferredBackends,
+	SDL_bool debugMode
 ) {
-	if (selectedBackend == REFRESH_BACKEND_INVALID)
-	{
-		Refresh_LogError("Invalid backend selection. Did you call Refresh_SelectBackend?");
-		return NULL;
-	}
+	int i;
+	Refresh_Device *result = NULL;
+	Refresh_Backend selectedBackend;
 
-	return backends[selectedBackend]->CreateDevice(
-		debugMode
-	);
+	selectedBackend = Refresh_SelectBackend(preferredBackends);
+	if (selectedBackend != REFRESH_BACKEND_INVALID)
+	{
+		for (i = 0; backends[i]; i += 1)
+		{
+			if (backends[i]->backendflag == selectedBackend)
+			{
+				result = backends[i]->CreateDevice(debugMode);
+				if (result != NULL) {
+					result->backend = backends[i]->backendflag;
+					break;
+				}
+			}
+		}
+	}
+	return result;
 }
 
 void Refresh_DestroyDevice(Refresh_Device *device)
 {
-	NULL_RETURN(device);
+	NULL_ASSERT(device);
 	device->DestroyDevice(device);
 }
 
-void Refresh_DrawIndexedPrimitives(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	uint32_t baseVertex,
-	uint32_t startIndex,
-	uint32_t primitiveCount,
-	uint32_t vertexParamOffset,
-	uint32_t fragmentParamOffset
-) {
-	NULL_RETURN(device);
-	device->DrawIndexedPrimitives(
-		device->driverData,
-		commandBuffer,
-		baseVertex,
-		startIndex,
-		primitiveCount,
-		vertexParamOffset,
-		fragmentParamOffset
-	);
+Refresh_Backend Refresh_GetBackend(Refresh_Device *device)
+{
+    if (device == NULL) {
+        return REFRESH_BACKEND_INVALID;
+    }
+    return device->backend;
 }
 
-void Refresh_DrawInstancedPrimitives(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	uint32_t baseVertex,
-	uint32_t startIndex,
-	uint32_t primitiveCount,
-	uint32_t instanceCount,
-	uint32_t vertexParamOffset,
-	uint32_t fragmentParamOffset
+Uint32 Refresh_TextureFormatTexelBlockSize(
+    Refresh_TextureFormat textureFormat
 ) {
-	NULL_RETURN(device);
-	device->DrawInstancedPrimitives(
-		device->driverData,
-		commandBuffer,
-		baseVertex,
-		startIndex,
-		primitiveCount,
-		instanceCount,
-		vertexParamOffset,
-		fragmentParamOffset
-	);
+    switch (textureFormat)
+	{
+		case REFRESH_TEXTUREFORMAT_BC1:
+			return 8;
+		case REFRESH_TEXTUREFORMAT_BC2:
+		case REFRESH_TEXTUREFORMAT_BC3:
+		case REFRESH_TEXTUREFORMAT_BC7:
+		case REFRESH_TEXTUREFORMAT_BC3_SRGB:
+		case REFRESH_TEXTUREFORMAT_BC7_SRGB:
+			return 16;
+		case REFRESH_TEXTUREFORMAT_R8:
+        case REFRESH_TEXTUREFORMAT_A8:
+		case REFRESH_TEXTUREFORMAT_R8_UINT:
+			return 1;
+		case REFRESH_TEXTUREFORMAT_R5G6B5:
+		case REFRESH_TEXTUREFORMAT_B4G4R4A4:
+		case REFRESH_TEXTUREFORMAT_A1R5G5B5:
+		case REFRESH_TEXTUREFORMAT_R16_SFLOAT:
+		case REFRESH_TEXTUREFORMAT_R8G8_SNORM:
+		case REFRESH_TEXTUREFORMAT_R8G8_UINT:
+		case REFRESH_TEXTUREFORMAT_R16_UINT:
+			return 2;
+		case REFRESH_TEXTUREFORMAT_R8G8B8A8:
+        case REFRESH_TEXTUREFORMAT_B8G8R8A8:
+        case REFRESH_TEXTUREFORMAT_R8G8B8A8_SRGB:
+        case REFRESH_TEXTUREFORMAT_B8G8R8A8_SRGB:
+		case REFRESH_TEXTUREFORMAT_R32_SFLOAT:
+		case REFRESH_TEXTUREFORMAT_R16G16_SFLOAT:
+		case REFRESH_TEXTUREFORMAT_R8G8B8A8_SNORM:
+		case REFRESH_TEXTUREFORMAT_A2R10G10B10:
+		case REFRESH_TEXTUREFORMAT_R8G8B8A8_UINT:
+		case REFRESH_TEXTUREFORMAT_R16G16_UINT:
+			return 4;
+		case REFRESH_TEXTUREFORMAT_R16G16B16A16_SFLOAT:
+		case REFRESH_TEXTUREFORMAT_R16G16B16A16:
+		case REFRESH_TEXTUREFORMAT_R32G32_SFLOAT:
+		case REFRESH_TEXTUREFORMAT_R16G16B16A16_UINT:
+			return 8;
+		case REFRESH_TEXTUREFORMAT_R32G32B32A32_SFLOAT:
+			return 16;
+		default:
+            SDL_LogError(
+                SDL_LOG_CATEGORY_APPLICATION,
+				"Unrecognized TextureFormat!"
+			);
+			return 0;
+	}
 }
 
-void Refresh_DrawPrimitives(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	uint32_t vertexStart,
-	uint32_t primitiveCount,
-	uint32_t vertexParamOffset,
-	uint32_t fragmentParamOffset
+SDL_bool Refresh_IsTextureFormatSupported(
+    Refresh_Device *device,
+    Refresh_TextureFormat format,
+    Refresh_TextureType type,
+    Refresh_TextureUsageFlags usage
 ) {
-	NULL_RETURN(device);
-	device->DrawPrimitives(
-		device->driverData,
-		commandBuffer,
-		vertexStart,
-		primitiveCount,
-		vertexParamOffset,
-		fragmentParamOffset
-	);
+    if (device == NULL) { return SDL_FALSE; }
+    return device->IsTextureFormatSupported(
+        device->driverData,
+        format,
+        type,
+        usage
+    );
 }
 
-void Refresh_DrawPrimitivesIndirect(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_Buffer *buffer,
-	uint32_t offsetInBytes,
-	uint32_t drawCount,
-	uint32_t stride,
-	uint32_t vertexParamOffset,
-	uint32_t fragmentParamOffset
+Refresh_SampleCount Refresh_GetBestSampleCount(
+    Refresh_Device* device,
+    Refresh_TextureFormat format,
+    Refresh_SampleCount desiredSampleCount
 ) {
-	NULL_RETURN(device);
-	device->DrawPrimitivesIndirect(
-		device->driverData,
-		commandBuffer,
-		buffer,
-		offsetInBytes,
-		drawCount,
-		stride,
-		vertexParamOffset,
-		fragmentParamOffset
-	);
+    if (device == NULL) { return 0; }
+    return device->GetBestSampleCount(
+        device->driverData,
+        format,
+        desiredSampleCount
+    );
 }
 
-void Refresh_DispatchCompute(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	uint32_t groupCountX,
-	uint32_t groupCountY,
-	uint32_t groupCountZ,
-	uint32_t computeParamOffset
-) {
-	NULL_RETURN(device);
-	device->DispatchCompute(
-		device->driverData,
-		commandBuffer,
-		groupCountX,
-		groupCountY,
-		groupCountZ,
-		computeParamOffset
-	);
-}
+/* State Creation */
 
 Refresh_ComputePipeline* Refresh_CreateComputePipeline(
 	Refresh_Device *device,
-	Refresh_ComputeShaderInfo *computeShaderInfo
+	Refresh_ComputePipelineCreateInfo *computePipelineCreateInfo
 ) {
-	NULL_RETURN_NULL(device);
+	NULL_ASSERT(device)
 	return device->CreateComputePipeline(
 		device->driverData,
-		computeShaderInfo
+		computePipelineCreateInfo
 	);
 }
 
 Refresh_GraphicsPipeline* Refresh_CreateGraphicsPipeline(
 	Refresh_Device *device,
-	Refresh_GraphicsPipelineCreateInfo *pipelineCreateInfo
+	Refresh_GraphicsPipelineCreateInfo *graphicsPipelineCreateInfo
 ) {
-	NULL_RETURN_NULL(device);
+    Refresh_TextureFormat newFormat;
+
+	NULL_ASSERT(device)
+
+    /* Automatically swap out the depth format if it's unsupported.
+     * See Refresh_CreateTexture.
+     */
+    if (
+        graphicsPipelineCreateInfo->attachmentInfo.hasDepthStencilAttachment &&
+        !device->IsTextureFormatSupported(
+            device->driverData,
+            graphicsPipelineCreateInfo->attachmentInfo.depthStencilFormat,
+            REFRESH_TEXTURETYPE_2D,
+            REFRESH_TEXTUREUSAGE_DEPTH_STENCIL_TARGET_BIT
+        )
+    ) {
+        switch (graphicsPipelineCreateInfo->attachmentInfo.depthStencilFormat)
+        {
+            case REFRESH_TEXTUREFORMAT_D24_UNORM:
+                newFormat = REFRESH_TEXTUREFORMAT_D32_SFLOAT;
+                break;
+            case REFRESH_TEXTUREFORMAT_D32_SFLOAT:
+                newFormat = REFRESH_TEXTUREFORMAT_D24_UNORM;
+                break;
+            case REFRESH_TEXTUREFORMAT_D24_UNORM_S8_UINT:
+                newFormat = REFRESH_TEXTUREFORMAT_D32_SFLOAT_S8_UINT;
+                break;
+            case REFRESH_TEXTUREFORMAT_D32_SFLOAT_S8_UINT:
+                newFormat = REFRESH_TEXTUREFORMAT_D24_UNORM_S8_UINT;
+                break;
+            default:
+                /* This should never happen, but just in case... */
+                newFormat = REFRESH_TEXTUREFORMAT_D16_UNORM;
+                break;
+        }
+
+        SDL_LogWarn(
+            SDL_LOG_CATEGORY_APPLICATION,
+            "Requested unsupported depth format %d, falling back to format %d!",
+            graphicsPipelineCreateInfo->attachmentInfo.depthStencilFormat,
+            newFormat
+        );
+        graphicsPipelineCreateInfo->attachmentInfo.depthStencilFormat = newFormat;
+    }
+
 	return device->CreateGraphicsPipeline(
 		device->driverData,
-		pipelineCreateInfo
+		graphicsPipelineCreateInfo
 	);
 }
 
 Refresh_Sampler* Refresh_CreateSampler(
 	Refresh_Device *device,
-	Refresh_SamplerStateCreateInfo *samplerStateCreateInfo
+	Refresh_SamplerCreateInfo *samplerStateInfo
 ) {
-	NULL_RETURN_NULL(device);
+	NULL_ASSERT(device)
 	return device->CreateSampler(
 		device->driverData,
-		samplerStateCreateInfo
+		samplerStateInfo
 	);
 }
 
-Refresh_ShaderModule* Refresh_CreateShaderModule(
-	Refresh_Device *device,
-	Refresh_ShaderModuleCreateInfo *shaderModuleCreateInfo
+Refresh_Shader* Refresh_CreateShader(
+    Refresh_Device *device,
+    Refresh_ShaderCreateInfo *shaderCreateInfo
 ) {
-	Refresh_ShaderModuleCreateInfo driverSpecificCreateInfo = { 0, NULL };
-	uint8_t *bytes;
-	uint32_t i, size;
-
-	NULL_RETURN_NULL(device);
-
-	/* verify the magic number in the shader blob header */
-	bytes = (uint8_t*) shaderModuleCreateInfo->byteCode;
-	if (bytes[0] != 'R' || bytes[1] != 'F' || bytes[2] != 'S' || bytes[3] != 'H')
-	{
-		Refresh_LogError("Cannot parse malformed Refresh shader blob!");
-		return NULL;
-	}
-
-	/* find the code for the selected backend */
-	i = 4;
-	while (i < shaderModuleCreateInfo->codeSize)
-	{
-		size = *((uint32_t*) &bytes[i + 1]);
-
-		if (bytes[i] == (uint8_t) selectedBackend)
-		{
-			driverSpecificCreateInfo.codeSize = size;
-			driverSpecificCreateInfo.byteCode = (uint32_t*) &bytes[i + 1 + sizeof(uint32_t)];
-			break;
-		}
-		else
-		{
-			/* skip over the backend byte, the blob size, and the blob */
-			i += 1 + sizeof(uint32_t) + size;
-		}
-	}
-
-	/* verify the shader blob supports the selected backend */
-	if (driverSpecificCreateInfo.byteCode == NULL)
-	{
-		Refresh_LogError(
-			"Cannot create shader module that does not contain shader code for the selected backend! "
-			"Recompile your shader and enable this backend."
-		);
-		return NULL;
-	}
-
-	return device->CreateShaderModule(
-		device->driverData,
-		&driverSpecificCreateInfo
-	);
+    if (shaderCreateInfo->format == REFRESH_SHADERFORMAT_SPIRV &&
+        device->backend != REFRESH_BACKEND_VULKAN) {
+        return SDL_CreateShaderFromSPIRV(device, shaderCreateInfo);
+    }
+    return device->CreateShader(
+        device->driverData,
+        shaderCreateInfo
+    );
 }
 
 Refresh_Texture* Refresh_CreateTexture(
 	Refresh_Device *device,
 	Refresh_TextureCreateInfo *textureCreateInfo
 ) {
-	NULL_RETURN_NULL(device);
+	Refresh_TextureFormat newFormat;
+
+	NULL_ASSERT(device)
+
+	/* Automatically swap out the depth format if it's unsupported.
+	 * All backends have universal support for D16.
+	 * Vulkan always supports at least one of { D24, D32 } and one of { D24_S8, D32_S8 }.
+	 * D3D11 always supports all depth formats.
+	 * Metal always supports D32 and D32_S8.
+	 * So if D32/_S8 is not supported, we can safely fall back to D24/_S8, and vice versa.
+	 */
+	if (IsDepthFormat(textureCreateInfo->format))
+	{
+		if (!device->IsTextureFormatSupported(
+			device->driverData,
+			textureCreateInfo->format,
+			REFRESH_TEXTURETYPE_2D, /* assuming that driver support for 2D implies support for Cube */
+			textureCreateInfo->usageFlags)
+		) {
+			switch (textureCreateInfo->format)
+			{
+				case REFRESH_TEXTUREFORMAT_D24_UNORM:
+					newFormat = REFRESH_TEXTUREFORMAT_D32_SFLOAT;
+					break;
+				case REFRESH_TEXTUREFORMAT_D32_SFLOAT:
+					newFormat = REFRESH_TEXTUREFORMAT_D24_UNORM;
+					break;
+				case REFRESH_TEXTUREFORMAT_D24_UNORM_S8_UINT:
+					newFormat = REFRESH_TEXTUREFORMAT_D32_SFLOAT_S8_UINT;
+					break;
+				case REFRESH_TEXTUREFORMAT_D32_SFLOAT_S8_UINT:
+					newFormat = REFRESH_TEXTUREFORMAT_D24_UNORM_S8_UINT;
+					break;
+				default:
+					/* This should never happen, but just in case... */
+					newFormat = REFRESH_TEXTUREFORMAT_D16_UNORM;
+					break;
+			}
+
+			SDL_LogWarn(
+				SDL_LOG_CATEGORY_APPLICATION,
+				"Requested unsupported depth format %d, falling back to format %d!",
+				textureCreateInfo->format,
+				newFormat
+			);
+			textureCreateInfo->format = newFormat;
+		}
+	}
+
 	return device->CreateTexture(
 		device->driverData,
 		textureCreateInfo
@@ -401,9 +444,9 @@ Refresh_Texture* Refresh_CreateTexture(
 Refresh_Buffer* Refresh_CreateBuffer(
 	Refresh_Device *device,
 	Refresh_BufferUsageFlags usageFlags,
-	uint32_t sizeInBytes
+	Uint32 sizeInBytes
 ) {
-	NULL_RETURN_NULL(device);
+	NULL_ASSERT(device)
 	return device->CreateBuffer(
 		device->driverData,
 		usageFlags,
@@ -411,503 +454,994 @@ Refresh_Buffer* Refresh_CreateBuffer(
 	);
 }
 
-void Refresh_SetTextureData(
+Refresh_TransferBuffer* Refresh_CreateTransferBuffer(
 	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_TextureSlice *textureSlice,
-	void *data,
-	uint32_t dataLengthInBytes
+	Refresh_TransferUsage usage,
+    Refresh_TransferBufferMapFlags mapFlags,
+	Uint32 sizeInBytes
 ) {
-	NULL_RETURN(device);
-	device->SetTextureData(
+	NULL_ASSERT(device)
+	return device->CreateTransferBuffer(
 		device->driverData,
-		commandBuffer,
-		textureSlice,
-		data,
-		dataLengthInBytes
+		usage,
+        mapFlags,
+		sizeInBytes
 	);
 }
 
-void Refresh_SetTextureDataYUV(
-	Refresh_Device *device,
-	Refresh_CommandBuffer* commandBuffer,
-	Refresh_Texture *y,
-	Refresh_Texture *u,
-	Refresh_Texture *v,
-	uint32_t yWidth,
-	uint32_t yHeight,
-	uint32_t uvWidth,
-	uint32_t uvHeight,
-	void *yDataPtr,
-	void *uDataPtr,
-	void *vDataPtr,
-	uint32_t yDataLength,
-	uint32_t uvDataLength,
-	uint32_t yStride,
-	uint32_t uvStride
+Refresh_OcclusionQuery* Refresh_CreateOcclusionQuery(
+    Refresh_Device *device
 ) {
-	NULL_RETURN(device);
-	device->SetTextureDataYUV(
-		device->driverData,
-		commandBuffer,
-		y,
-		u,
-		v,
-		yWidth,
-		yHeight,
-		uvWidth,
-		uvHeight,
-		yDataPtr,
-		uDataPtr,
-		vDataPtr,
-		yDataLength,
-		uvDataLength,
-		yStride,
-		uvStride
-	);
+    NULL_ASSERT(device)
+    return device->CreateOcclusionQuery(
+        device->driverData
+    );
 }
 
-void Refresh_CopyTextureToTexture(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_TextureSlice *sourceTextureSlice,
-	Refresh_TextureSlice *destinationTextureSlice,
-	Refresh_Filter filter
-) {
-	NULL_RETURN(device);
-	device->CopyTextureToTexture(
-		device->driverData,
-		commandBuffer,
-		sourceTextureSlice,
-		destinationTextureSlice,
-		filter
-	);
-}
+/* Debug Naming */
 
-void Refresh_CopyTextureToBuffer(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_TextureSlice *textureSlice,
-	Refresh_Buffer *buffer
-) {
-	NULL_RETURN(device);
-	device->CopyTextureToBuffer(
-		device->driverData,
-		commandBuffer,
-		textureSlice,
-		buffer
-	);
-}
-
-void Refresh_SetBufferData(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_Buffer *buffer,
-	uint32_t offsetInBytes,
-	void* data,
-	uint32_t dataLength
-) {
-	NULL_RETURN(device);
-	device->SetBufferData(
-		device->driverData,
-		commandBuffer,
-		buffer,
-		offsetInBytes,
-		data,
-		dataLength
-	);
-}
-
-uint32_t Refresh_PushVertexShaderUniforms(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	void *data,
-	uint32_t dataLengthInBytes
-) {
-	if (device == NULL) { return 0; }
-	return device->PushVertexShaderUniforms(
-		device->driverData,
-		commandBuffer,
-		data,
-		dataLengthInBytes
-	);
-}
-
-uint32_t Refresh_PushFragmentShaderUniforms(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	void *data,
-	uint32_t dataLengthInBytes
-) {
-	if (device == NULL) { return 0; }
-	return device->PushFragmentShaderUniforms(
-		device->driverData,
-		commandBuffer,
-		data,
-		dataLengthInBytes
-	);
-}
-
-uint32_t Refresh_PushComputeShaderUniforms(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	void *data,
-	uint32_t dataLengthInBytes
-) {
-	if (device == NULL) { return 0; }
-	return device->PushComputeShaderUniforms(
-		device->driverData,
-		commandBuffer,
-		data,
-		dataLengthInBytes
-	);
-}
-
-void Refresh_BindVertexSamplers(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_Texture **pTextures,
-	Refresh_Sampler **pSamplers
-) {
-	NULL_RETURN(device);
-	device->BindVertexSamplers(
-		device->driverData,
-		commandBuffer,
-		pTextures,
-		pSamplers
-	);
-}
-
-void Refresh_BindFragmentSamplers(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_Texture **pTextures,
-	Refresh_Sampler **pSamplers
-) {
-	NULL_RETURN(device);
-	device->BindFragmentSamplers(
-		device->driverData,
-		commandBuffer,
-		pTextures,
-		pSamplers
-	);
-}
-
-void Refresh_GetBufferData(
+void Refresh_SetBufferName(
 	Refresh_Device *device,
 	Refresh_Buffer *buffer,
-	void *data,
-	uint32_t dataLengthInBytes
+	const char *text
 ) {
-	NULL_RETURN(device);
-	device->GetBufferData(
+	NULL_ASSERT(device)
+	NULL_ASSERT(buffer)
+
+	device->SetBufferName(
 		device->driverData,
 		buffer,
-		data,
-		dataLengthInBytes
+		text
 	);
 }
 
-void Refresh_QueueDestroyTexture(
+void Refresh_SetTextureName(
+	Refresh_Device *device,
+	Refresh_Texture *texture,
+	const char *text
+) {
+	NULL_ASSERT(device)
+	NULL_ASSERT(texture)
+
+	device->SetTextureName(
+		device->driverData,
+		texture,
+		text
+	);
+}
+
+void Refresh_SetStringMarker(
+    Refresh_CommandBuffer *commandBuffer,
+    const char *text
+) {
+    CHECK_COMMAND_BUFFER
+    COMMAND_BUFFER_DEVICE->SetStringMarker(
+        commandBuffer,
+        text
+    );
+}
+
+/* Disposal */
+
+void Refresh_ReleaseTexture(
 	Refresh_Device *device,
 	Refresh_Texture *texture
 ) {
-	NULL_RETURN(device);
-	device->QueueDestroyTexture(
+	NULL_ASSERT(device);
+	device->ReleaseTexture(
 		device->driverData,
 		texture
 	);
 }
 
-void Refresh_QueueDestroySampler(
+void Refresh_ReleaseSampler(
 	Refresh_Device *device,
 	Refresh_Sampler *sampler
 ) {
-	NULL_RETURN(device);
-	device->QueueDestroySampler(
+	NULL_ASSERT(device);
+	device->ReleaseSampler(
 		device->driverData,
 		sampler
 	);
 }
 
-void Refresh_QueueDestroyBuffer(
+void Refresh_ReleaseBuffer(
 	Refresh_Device *device,
 	Refresh_Buffer *buffer
 ) {
-	NULL_RETURN(device);
-	device->QueueDestroyBuffer(
+	NULL_ASSERT(device);
+	device->ReleaseBuffer(
 		device->driverData,
 		buffer
 	);
 }
 
-void Refresh_QueueDestroyShaderModule(
+void Refresh_ReleaseTransferBuffer(
 	Refresh_Device *device,
-	Refresh_ShaderModule *shaderModule
+	Refresh_TransferBuffer *transferBuffer
 ) {
-	NULL_RETURN(device);
-	device->QueueDestroyShaderModule(
+	NULL_ASSERT(device);
+	device->ReleaseTransferBuffer(
 		device->driverData,
-		shaderModule
+		transferBuffer
 	);
 }
 
-void Refresh_QueueDestroyComputePipeline(
+void Refresh_ReleaseShader(
+	Refresh_Device *device,
+	Refresh_Shader *shader
+) {
+	NULL_ASSERT(device);
+	device->ReleaseShader(
+		device->driverData,
+		shader
+	);
+}
+
+void Refresh_ReleaseComputePipeline(
 	Refresh_Device *device,
 	Refresh_ComputePipeline *computePipeline
 ) {
-	NULL_RETURN(device);
-	device->QueueDestroyComputePipeline(
+	NULL_ASSERT(device);
+	device->ReleaseComputePipeline(
 		device->driverData,
 		computePipeline
 	);
 }
 
-void Refresh_QueueDestroyGraphicsPipeline(
+void Refresh_ReleaseGraphicsPipeline(
 	Refresh_Device *device,
 	Refresh_GraphicsPipeline *graphicsPipeline
 ) {
-	NULL_RETURN(device);
-	device->QueueDestroyGraphicsPipeline(
+	NULL_ASSERT(device);
+	device->ReleaseGraphicsPipeline(
 		device->driverData,
 		graphicsPipeline
 	);
 }
 
-void Refresh_BeginRenderPass(
-	Refresh_Device *device,
+void Refresh_ReleaseOcclusionQuery(
+    Refresh_Device *device,
+    Refresh_OcclusionQuery *query
+) {
+    NULL_ASSERT(device);
+    device->ReleaseOcclusionQuery(
+        device->driverData,
+        query
+    );
+}
+
+/* Render Pass */
+
+Refresh_RenderPass* Refresh_BeginRenderPass(
 	Refresh_CommandBuffer *commandBuffer,
 	Refresh_ColorAttachmentInfo *colorAttachmentInfos,
-	uint32_t colorAttachmentCount,
+	Uint32 colorAttachmentCount,
 	Refresh_DepthStencilAttachmentInfo *depthStencilAttachmentInfo
 ) {
-	NULL_RETURN(device);
-	device->BeginRenderPass(
-		device->driverData,
+    CommandBufferCommonHeader *commandBufferHeader;
+
+    CHECK_COMMAND_BUFFER_RETURN_NULL
+    CHECK_ANY_PASS_IN_PROGRESS
+	COMMAND_BUFFER_DEVICE->BeginRenderPass(
 		commandBuffer,
 		colorAttachmentInfos,
 		colorAttachmentCount,
 		depthStencilAttachmentInfo
 	);
+
+    commandBufferHeader = (CommandBufferCommonHeader*) commandBuffer;
+    commandBufferHeader->renderPass.inProgress = SDL_TRUE;
+    return (Refresh_RenderPass*) &(commandBufferHeader->renderPass);
 }
 
-void Refresh_EndRenderPass(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer
+void Refresh_BindGraphicsPipeline(
+	Refresh_RenderPass *renderPass,
+	Refresh_GraphicsPipeline *graphicsPipeline
 ) {
-	NULL_RETURN(device);
-	device->EndRenderPass(
-		device->driverData,
-		commandBuffer
+    CommandBufferCommonHeader *commandBufferHeader;
+
+    NULL_ASSERT(renderPass)
+	RENDERPASS_DEVICE->BindGraphicsPipeline(
+		RENDERPASS_COMMAND_BUFFER,
+		graphicsPipeline
 	);
+
+    commandBufferHeader = (CommandBufferCommonHeader*) RENDERPASS_COMMAND_BUFFER;
+    commandBufferHeader->graphicsPipelineBound = SDL_TRUE;
 }
 
 void Refresh_SetViewport(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
+	Refresh_RenderPass *renderPass,
 	Refresh_Viewport *viewport
 ) {
-	NULL_RETURN(device)
-	device->SetViewport(
-		device->driverData,
-		commandBuffer,
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+	RENDERPASS_DEVICE->SetViewport(
+		RENDERPASS_COMMAND_BUFFER,
 		viewport
 	);
 }
 
 void Refresh_SetScissor(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
+	Refresh_RenderPass *renderPass,
 	Refresh_Rect *scissor
 ) {
-	NULL_RETURN(device)
-	device->SetScissor(
-		device->driverData,
-		commandBuffer,
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+	RENDERPASS_DEVICE->SetScissor(
+		RENDERPASS_COMMAND_BUFFER,
 		scissor
 	);
 }
 
-void Refresh_BindGraphicsPipeline(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_GraphicsPipeline *graphicsPipeline
-) {
-	NULL_RETURN(device);
-	device->BindGraphicsPipeline(
-		device->driverData,
-		commandBuffer,
-		graphicsPipeline
-	);
-}
-
 void Refresh_BindVertexBuffers(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	uint32_t firstBinding,
-	uint32_t bindingCount,
-	Refresh_Buffer **pBuffers,
-	uint64_t *pOffsets
+    Refresh_RenderPass *renderPass,
+	Uint32 firstBinding,
+    Refresh_BufferBinding *pBindings,
+	Uint32 bindingCount
 ) {
-	NULL_RETURN(device);
-	device->BindVertexBuffers(
-		device->driverData,
-		commandBuffer,
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+	RENDERPASS_DEVICE->BindVertexBuffers(
+		RENDERPASS_COMMAND_BUFFER,
 		firstBinding,
-		bindingCount,
-		pBuffers,
-		pOffsets
+        pBindings,
+		bindingCount
 	);
 }
 
 void Refresh_BindIndexBuffer(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_Buffer *buffer,
-	uint64_t offset,
+    Refresh_RenderPass *renderPass,
+	Refresh_BufferBinding *pBinding,
 	Refresh_IndexElementSize indexElementSize
 ) {
-	NULL_RETURN(device);
-	device->BindIndexBuffer(
-		device->driverData,
-		commandBuffer,
-		buffer,
-		offset,
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+	RENDERPASS_DEVICE->BindIndexBuffer(
+		RENDERPASS_COMMAND_BUFFER,
+		pBinding,
 		indexElementSize
 	);
 }
 
-void Refresh_BindComputePipeline(
-	Refresh_Device *device,
+void Refresh_BindVertexSamplers(
+    Refresh_RenderPass *renderPass,
+    Uint32 firstSlot,
+    Refresh_TextureSamplerBinding *textureSamplerBindings,
+    Uint32 bindingCount
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->BindVertexSamplers(
+        RENDERPASS_COMMAND_BUFFER,
+        firstSlot,
+        textureSamplerBindings,
+        bindingCount
+    );
+}
+
+void Refresh_BindVertexStorageTextures(
+    Refresh_RenderPass *renderPass,
+    Uint32 firstSlot,
+    Refresh_TextureSlice *storageTextureSlices,
+    Uint32 bindingCount
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->BindVertexStorageTextures(
+        RENDERPASS_COMMAND_BUFFER,
+        firstSlot,
+        storageTextureSlices,
+        bindingCount
+    );
+}
+
+void Refresh_BindVertexStorageBuffers(
+    Refresh_RenderPass *renderPass,
+    Uint32 firstSlot,
+    Refresh_Buffer **storageBuffers,
+    Uint32 bindingCount
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->BindVertexStorageBuffers(
+        RENDERPASS_COMMAND_BUFFER,
+        firstSlot,
+        storageBuffers,
+        bindingCount
+    );
+}
+
+void Refresh_BindFragmentSamplers(
+    Refresh_RenderPass *renderPass,
+    Uint32 firstSlot,
+    Refresh_TextureSamplerBinding *textureSamplerBindings,
+    Uint32 bindingCount
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->BindFragmentSamplers(
+        RENDERPASS_COMMAND_BUFFER,
+        firstSlot,
+        textureSamplerBindings,
+        bindingCount
+    );
+}
+
+void Refresh_BindFragmentStorageTextures(
+    Refresh_RenderPass *renderPass,
+    Uint32 firstSlot,
+    Refresh_TextureSlice *storageTextureSlices,
+    Uint32 bindingCount
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->BindFragmentStorageTextures(
+        RENDERPASS_COMMAND_BUFFER,
+        firstSlot,
+        storageTextureSlices,
+        bindingCount
+    );
+}
+
+void Refresh_BindFragmentStorageBuffers(
+    Refresh_RenderPass *renderPass,
+    Uint32 firstSlot,
+    Refresh_Buffer **storageBuffers,
+    Uint32 bindingCount
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->BindFragmentStorageBuffers(
+        RENDERPASS_COMMAND_BUFFER,
+        firstSlot,
+        storageBuffers,
+        bindingCount
+    );
+}
+
+void Refresh_PushVertexUniformData(
+	Refresh_RenderPass *renderPass,
+	Uint32 slotIndex,
+	void *data,
+	Uint32 dataLengthInBytes
+) {
+	NULL_ASSERT(renderPass)
+	CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+	RENDERPASS_DEVICE->PushVertexUniformData(
+		RENDERPASS_COMMAND_BUFFER,
+		slotIndex,
+		data,
+		dataLengthInBytes
+	);
+}
+
+void Refresh_PushFragmentUniformData(
+    Refresh_RenderPass *renderPass,
+	Uint32 slotIndex,
+	void *data,
+	Uint32 dataLengthInBytes
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->PushFragmentUniformData(
+        RENDERPASS_COMMAND_BUFFER,
+        slotIndex,
+        data,
+        dataLengthInBytes
+    );
+}
+
+void Refresh_DrawIndexedPrimitives(
+    Refresh_RenderPass *renderPass,
+	Uint32 baseVertex,
+	Uint32 startIndex,
+	Uint32 primitiveCount,
+	Uint32 instanceCount
+) {
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+	RENDERPASS_DEVICE->DrawIndexedPrimitives(
+		RENDERPASS_COMMAND_BUFFER,
+		baseVertex,
+		startIndex,
+		primitiveCount,
+		instanceCount
+	);
+}
+
+void Refresh_DrawPrimitives(
+    Refresh_RenderPass *renderPass,
+	Uint32 vertexStart,
+	Uint32 primitiveCount
+) {
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+	RENDERPASS_DEVICE->DrawPrimitives(
+		RENDERPASS_COMMAND_BUFFER,
+		vertexStart,
+		primitiveCount
+	);
+}
+
+void Refresh_DrawPrimitivesIndirect(
+    Refresh_RenderPass *renderPass,
+	Refresh_Buffer *buffer,
+	Uint32 offsetInBytes,
+	Uint32 drawCount,
+	Uint32 stride
+) {
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+	RENDERPASS_DEVICE->DrawPrimitivesIndirect(
+		RENDERPASS_COMMAND_BUFFER,
+		buffer,
+		offsetInBytes,
+		drawCount,
+		stride
+	);
+}
+
+void Refresh_DrawIndexedPrimitivesIndirect(
+    Refresh_RenderPass *renderPass,
+    Refresh_Buffer *buffer,
+    Uint32 offsetInBytes,
+    Uint32 drawCount,
+    Uint32 stride
+) {
+    NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+    CHECK_GRAPHICS_PIPELINE_BOUND
+    RENDERPASS_DEVICE->DrawIndexedPrimitivesIndirect(
+        RENDERPASS_COMMAND_BUFFER,
+        buffer,
+        offsetInBytes,
+        drawCount,
+        stride
+    );
+}
+
+void Refresh_EndRenderPass(
+    Refresh_RenderPass *renderPass
+) {
+    CommandBufferCommonHeader *commandBufferCommonHeader;
+
+	NULL_ASSERT(renderPass)
+    CHECK_RENDERPASS
+	RENDERPASS_DEVICE->EndRenderPass(
+		RENDERPASS_COMMAND_BUFFER
+	);
+
+    commandBufferCommonHeader = (CommandBufferCommonHeader*) RENDERPASS_COMMAND_BUFFER;
+    commandBufferCommonHeader->renderPass.inProgress = SDL_FALSE;
+    commandBufferCommonHeader->graphicsPipelineBound = SDL_FALSE;
+}
+
+/* Compute Pass */
+
+Refresh_ComputePass* Refresh_BeginComputePass(
 	Refresh_CommandBuffer *commandBuffer,
+    Refresh_StorageTextureReadWriteBinding *storageTextureBindings,
+    Uint32 storageTextureBindingCount,
+    Refresh_StorageBufferReadWriteBinding *storageBufferBindings,
+    Uint32 storageBufferBindingCount
+) {
+    CommandBufferCommonHeader* commandBufferHeader;
+
+    CHECK_COMMAND_BUFFER_RETURN_NULL
+    CHECK_ANY_PASS_IN_PROGRESS
+	COMMAND_BUFFER_DEVICE->BeginComputePass(
+		commandBuffer,
+        storageTextureBindings,
+        storageTextureBindingCount,
+        storageBufferBindings,
+        storageBufferBindingCount
+	);
+
+    commandBufferHeader = (CommandBufferCommonHeader*) commandBuffer;
+    commandBufferHeader->computePass.inProgress = SDL_TRUE;
+    return (Refresh_ComputePass*) &(commandBufferHeader->computePass);
+}
+
+void Refresh_BindComputePipeline(
+	Refresh_ComputePass *computePass,
 	Refresh_ComputePipeline *computePipeline
 ) {
-	NULL_RETURN(device);
-	device->BindComputePipeline(
-		device->driverData,
-		commandBuffer,
+    CommandBufferCommonHeader* commandBufferHeader;
+
+	NULL_ASSERT(computePass)
+    CHECK_COMPUTEPASS
+	COMPUTEPASS_DEVICE->BindComputePipeline(
+		COMPUTEPASS_COMMAND_BUFFER,
 		computePipeline
 	);
+
+    commandBufferHeader = (CommandBufferCommonHeader*) COMPUTEPASS_COMMAND_BUFFER;
+    commandBufferHeader->computePipelineBound = SDL_TRUE;
+
 }
 
-void Refresh_BindComputeBuffers(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_Buffer **pBuffers
+void Refresh_BindComputeStorageTextures(
+    Refresh_ComputePass *computePass,
+    Uint32 firstSlot,
+    Refresh_TextureSlice *storageTextureSlices,
+    Uint32 bindingCount
 ) {
-	NULL_RETURN(device);
-	device->BindComputeBuffers(
-		device->driverData,
-		commandBuffer,
-		pBuffers
+    NULL_ASSERT(computePass)
+    CHECK_COMPUTEPASS
+    CHECK_COMPUTE_PIPELINE_BOUND
+    COMPUTEPASS_DEVICE->BindComputeStorageTextures(
+        COMPUTEPASS_COMMAND_BUFFER,
+        firstSlot,
+        storageTextureSlices,
+        bindingCount
+    );
+}
+
+void Refresh_BindComputeStorageBuffers(
+    Refresh_ComputePass *computePass,
+    Uint32 firstSlot,
+    Refresh_Buffer **storageBuffers,
+    Uint32 bindingCount
+) {
+    NULL_ASSERT(computePass)
+    CHECK_COMPUTEPASS
+    CHECK_COMPUTE_PIPELINE_BOUND
+    COMPUTEPASS_DEVICE->BindComputeStorageBuffers(
+        COMPUTEPASS_COMMAND_BUFFER,
+        firstSlot,
+        storageBuffers,
+        bindingCount
+    );
+}
+
+void Refresh_PushComputeUniformData(
+	Refresh_ComputePass *computePass,
+	Uint32 slotIndex,
+	void *data,
+	Uint32 dataLengthInBytes
+) {
+	NULL_ASSERT(computePass)
+	CHECK_COMPUTEPASS
+    CHECK_COMPUTE_PIPELINE_BOUND
+	COMPUTEPASS_DEVICE->PushComputeUniformData(
+		COMPUTEPASS_COMMAND_BUFFER,
+		slotIndex,
+		data,
+		dataLengthInBytes
 	);
 }
 
-void Refresh_BindComputeTextures(
-	Refresh_Device *device,
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_Texture **pTextures
+void Refresh_DispatchCompute(
+	Refresh_ComputePass *computePass,
+	Uint32 groupCountX,
+	Uint32 groupCountY,
+	Uint32 groupCountZ
 ) {
-	NULL_RETURN(device);
-	device->BindComputeTextures(
-		device->driverData,
-		commandBuffer,
-		pTextures
+	NULL_ASSERT(computePass)
+    CHECK_COMPUTEPASS
+    CHECK_COMPUTE_PIPELINE_BOUND
+	COMPUTEPASS_DEVICE->DispatchCompute(
+		COMPUTEPASS_COMMAND_BUFFER,
+		groupCountX,
+		groupCountY,
+		groupCountZ
 	);
 }
 
-uint8_t Refresh_ClaimWindow(
+void Refresh_EndComputePass(
+	Refresh_ComputePass *computePass
+) {
+    CommandBufferCommonHeader* commandBufferCommonHeader;
+
+	NULL_ASSERT(computePass)
+    CHECK_COMPUTEPASS
+	COMPUTEPASS_DEVICE->EndComputePass(
+        COMPUTEPASS_COMMAND_BUFFER
+	);
+
+    commandBufferCommonHeader = (CommandBufferCommonHeader*) COMPUTEPASS_COMMAND_BUFFER;
+    commandBufferCommonHeader->computePass.inProgress = SDL_FALSE;
+    commandBufferCommonHeader->computePipelineBound = SDL_FALSE;
+}
+
+/* TransferBuffer Data */
+
+void Refresh_MapTransferBuffer(
+    Refresh_Device *device,
+    Refresh_TransferBuffer *transferBuffer,
+    SDL_bool cycle,
+    void **ppData
+) {
+    NULL_ASSERT(device)
+    NULL_ASSERT(transferBuffer)
+    device->MapTransferBuffer(
+        device->driverData,
+        transferBuffer,
+        cycle,
+        ppData
+    );
+}
+
+void Refresh_UnmapTransferBuffer(
+    Refresh_Device *device,
+    Refresh_TransferBuffer *transferBuffer
+) {
+    NULL_ASSERT(device)
+    NULL_ASSERT(transferBuffer)
+    device->UnmapTransferBuffer(
+        device->driverData,
+        transferBuffer
+    );
+}
+
+void Refresh_SetTransferData(
 	Refresh_Device *device,
-	void *windowHandle,
+	void* data,
+	Refresh_TransferBuffer *transferBuffer,
+	Refresh_BufferCopy *copyParams,
+	SDL_bool cycle
+) {
+	NULL_ASSERT(device)
+	device->SetTransferData(
+		device->driverData,
+		data,
+		transferBuffer,
+		copyParams,
+		cycle
+	);
+}
+
+void Refresh_GetTransferData(
+	Refresh_Device *device,
+	Refresh_TransferBuffer *transferBuffer,
+	void* data,
+	Refresh_BufferCopy *copyParams
+) {
+	NULL_ASSERT(device)
+	device->GetTransferData(
+		device->driverData,
+		transferBuffer,
+		data,
+		copyParams
+	);
+}
+
+/* Copy Pass */
+
+Refresh_CopyPass* Refresh_BeginCopyPass(
+	Refresh_CommandBuffer *commandBuffer
+) {
+    CommandBufferCommonHeader *commandBufferHeader;
+
+    CHECK_COMMAND_BUFFER_RETURN_NULL
+    CHECK_ANY_PASS_IN_PROGRESS
+	COMMAND_BUFFER_DEVICE->BeginCopyPass(
+		commandBuffer
+	);
+
+    commandBufferHeader = (CommandBufferCommonHeader*) commandBuffer;
+    commandBufferHeader->copyPass.inProgress = SDL_TRUE;
+    return (Refresh_CopyPass*) &(commandBufferHeader->copyPass);
+}
+
+void Refresh_UploadToTexture(
+    Refresh_CopyPass *copyPass,
+	Refresh_TransferBuffer *transferBuffer,
+	Refresh_TextureRegion *textureRegion,
+	Refresh_BufferImageCopy *copyParams,
+	SDL_bool cycle
+) {
+	NULL_ASSERT(copyPass)
+    CHECK_COPYPASS
+	COPYPASS_DEVICE->UploadToTexture(
+		COPYPASS_COMMAND_BUFFER,
+		transferBuffer,
+		textureRegion,
+		copyParams,
+		cycle
+	);
+}
+
+void Refresh_UploadToBuffer(
+    Refresh_CopyPass *copyPass,
+	Refresh_TransferBuffer *transferBuffer,
+	Refresh_Buffer *buffer,
+	Refresh_BufferCopy *copyParams,
+	SDL_bool cycle
+) {
+	NULL_ASSERT(copyPass)
+	COPYPASS_DEVICE->UploadToBuffer(
+		COPYPASS_COMMAND_BUFFER,
+		transferBuffer,
+		buffer,
+		copyParams,
+		cycle
+	);
+}
+
+void Refresh_CopyTextureToTexture(
+    Refresh_CopyPass *copyPass,
+	Refresh_TextureRegion *source,
+	Refresh_TextureRegion *destination,
+	SDL_bool cycle
+) {
+	NULL_ASSERT(copyPass)
+	COPYPASS_DEVICE->CopyTextureToTexture(
+		COPYPASS_COMMAND_BUFFER,
+		source,
+		destination,
+		cycle
+	);
+}
+
+void Refresh_CopyBufferToBuffer(
+    Refresh_CopyPass *copyPass,
+	Refresh_Buffer *source,
+	Refresh_Buffer *destination,
+	Refresh_BufferCopy *copyParams,
+	SDL_bool cycle
+) {
+	NULL_ASSERT(copyPass)
+	COPYPASS_DEVICE->CopyBufferToBuffer(
+		COPYPASS_COMMAND_BUFFER,
+		source,
+		destination,
+		copyParams,
+		cycle
+	);
+}
+
+void Refresh_GenerateMipmaps(
+    Refresh_CopyPass *copyPass,
+	Refresh_Texture *texture
+) {
+	NULL_ASSERT(copyPass)
+	COPYPASS_DEVICE->GenerateMipmaps(
+		COPYPASS_COMMAND_BUFFER,
+		texture
+	);
+}
+
+void Refresh_DownloadFromTexture(
+	Refresh_CopyPass *copyPass,
+	Refresh_TextureRegion *textureRegion,
+	Refresh_TransferBuffer *transferBuffer,
+	Refresh_BufferImageCopy *copyParams
+) {
+	NULL_ASSERT(copyPass);
+	COPYPASS_DEVICE->DownloadFromTexture(
+		COPYPASS_COMMAND_BUFFER,
+		textureRegion,
+		transferBuffer,
+		copyParams
+	);
+}
+
+void Refresh_DownloadFromBuffer(
+	Refresh_CopyPass *copyPass,
+	Refresh_Buffer *buffer,
+	Refresh_TransferBuffer *transferBuffer,
+	Refresh_BufferCopy *copyParams
+) {
+	NULL_ASSERT(copyPass);
+	COPYPASS_DEVICE->DownloadFromBuffer(
+		COPYPASS_COMMAND_BUFFER,
+		buffer,
+		transferBuffer,
+		copyParams
+	);
+}
+
+void Refresh_EndCopyPass(
+	Refresh_CopyPass *copyPass
+) {
+	NULL_ASSERT(copyPass)
+    CHECK_COPYPASS
+	COPYPASS_DEVICE->EndCopyPass(
+		COPYPASS_COMMAND_BUFFER
+	);
+
+    ((CommandBufferCommonHeader*) COPYPASS_COMMAND_BUFFER)->copyPass.inProgress = SDL_FALSE;
+}
+
+void Refresh_Blit(
+    Refresh_CommandBuffer *commandBuffer,
+    Refresh_TextureRegion *source,
+    Refresh_TextureRegion *destination,
+    Refresh_Filter filterMode,
+	SDL_bool cycle
+) {
+    CHECK_COMMAND_BUFFER
+    COMMAND_BUFFER_DEVICE->Blit(
+        commandBuffer,
+        source,
+        destination,
+        filterMode,
+        cycle
+    );
+}
+
+/* Submission/Presentation */
+
+SDL_bool Refresh_SupportsSwapchainComposition(
+    Refresh_Device *device,
+    SDL_Window *window,
+    Refresh_SwapchainComposition swapchainFormat
+) {
+    if (device == NULL) { return 0; }
+    return device->SupportsSwapchainComposition(
+        device->driverData,
+        window,
+        swapchainFormat
+    );
+}
+
+SDL_bool Refresh_SupportsPresentMode(
+	Refresh_Device *device,
+    SDL_Window *window,
 	Refresh_PresentMode presentMode
+) {
+	if (device == NULL) { return 0; }
+	return device->SupportsPresentMode(
+		device->driverData,
+        window,
+		presentMode
+	);
+}
+
+SDL_bool Refresh_ClaimWindow(
+	Refresh_Device *device,
+	SDL_Window *window,
+    Refresh_SwapchainComposition swapchainFormat,
+    Refresh_PresentMode presentMode
 ) {
 	if (device == NULL) { return 0; }
 	return device->ClaimWindow(
 		device->driverData,
-		windowHandle,
-		presentMode
+		window,
+        swapchainFormat,
+        presentMode
 	);
 }
 
 void Refresh_UnclaimWindow(
 	Refresh_Device *device,
-	void *windowHandle
+	SDL_Window *window
 ) {
-	NULL_RETURN(device);
+	NULL_ASSERT(device);
 	device->UnclaimWindow(
 		device->driverData,
-		windowHandle
+		window
+	);
+}
+
+void Refresh_SetSwapchainParameters(
+	Refresh_Device *device,
+	SDL_Window *window,
+    Refresh_SwapchainComposition swapchainFormat,
+    Refresh_PresentMode presentMode
+) {
+	NULL_ASSERT(device);
+	device->SetSwapchainParameters(
+		device->driverData,
+		window,
+        swapchainFormat,
+        presentMode
+	);
+}
+
+Refresh_TextureFormat Refresh_GetSwapchainTextureFormat(
+	Refresh_Device *device,
+	SDL_Window *window
+) {
+	if (device == NULL) { return 0; }
+	return device->GetSwapchainTextureFormat(
+		device->driverData,
+		window
 	);
 }
 
 Refresh_CommandBuffer* Refresh_AcquireCommandBuffer(
 	Refresh_Device *device
 ) {
-	NULL_RETURN_NULL(device);
-	return device->AcquireCommandBuffer(
+	Refresh_CommandBuffer* commandBuffer;
+    CommandBufferCommonHeader *commandBufferHeader;
+    NULL_ASSERT(device);
+
+    commandBuffer = device->AcquireCommandBuffer(
 		device->driverData
 	);
+
+    if (commandBuffer == NULL)
+    {
+        return NULL;
+    }
+
+    commandBufferHeader = (CommandBufferCommonHeader*) commandBuffer;
+    commandBufferHeader->device = device;
+    commandBufferHeader->renderPass.commandBuffer = commandBuffer;
+    commandBufferHeader->renderPass.inProgress = SDL_FALSE;
+    commandBufferHeader->graphicsPipelineBound = SDL_FALSE;
+    commandBufferHeader->computePass.commandBuffer = commandBuffer;
+    commandBufferHeader->computePass.inProgress = SDL_FALSE;
+    commandBufferHeader->computePipelineBound = SDL_FALSE;
+    commandBufferHeader->copyPass.commandBuffer = commandBuffer;
+    commandBufferHeader->copyPass.inProgress = SDL_FALSE;
+    commandBufferHeader->submitted = SDL_FALSE;
+
+    return commandBuffer;
 }
 
 Refresh_Texture* Refresh_AcquireSwapchainTexture(
-	Refresh_Device *device,
 	Refresh_CommandBuffer *commandBuffer,
-	void *windowHandle,
-	uint32_t *pWidth,
-	uint32_t *pHeight
+	SDL_Window *window,
+	Uint32 *pWidth,
+	Uint32 *pHeight
 ) {
-	NULL_RETURN_NULL(device);
-	return device->AcquireSwapchainTexture(
-		device->driverData,
+    CHECK_COMMAND_BUFFER_RETURN_NULL
+	return COMMAND_BUFFER_DEVICE->AcquireSwapchainTexture(
 		commandBuffer,
-		windowHandle,
+		window,
 		pWidth,
 		pHeight
 	);
 }
 
-Refresh_TextureFormat Refresh_GetSwapchainFormat(
-	Refresh_Device *device,
-	void *windowHandle
-) {
-	if (device == NULL) { return 0; }
-	return device->GetSwapchainFormat(
-		device->driverData,
-		windowHandle
-	);
-}
-
-void Refresh_SetSwapchainPresentMode(
-	Refresh_Device *device,
-	void *windowHandle,
-	Refresh_PresentMode presentMode
-) {
-	NULL_RETURN(device);
-	device->SetSwapchainPresentMode(
-		device->driverData,
-		windowHandle,
-		presentMode
-	);
-}
-
 void Refresh_Submit(
-	Refresh_Device *device,
 	Refresh_CommandBuffer *commandBuffer
 ) {
-	NULL_RETURN(device);
-	device->Submit(
-		device->driverData,
+    CHECK_COMMAND_BUFFER
+    CommandBufferCommonHeader *commandBufferHeader = (CommandBufferCommonHeader*) commandBuffer;
+
+    if (
+        commandBufferHeader->renderPass.inProgress ||
+        commandBufferHeader->computePass.inProgress ||
+        commandBufferHeader->copyPass.inProgress
+    ) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot submit command buffer while a pass is in progress!");
+        return;
+    }
+
+    commandBufferHeader->submitted = SDL_TRUE;
+
+	COMMAND_BUFFER_DEVICE->Submit(
 		commandBuffer
 	);
 }
 
 Refresh_Fence* Refresh_SubmitAndAcquireFence(
-	Refresh_Device *device,
 	Refresh_CommandBuffer *commandBuffer
 ) {
-	NULL_RETURN_NULL(device);
-	return device->SubmitAndAcquireFence(
-		device->driverData,
+    CHECK_COMMAND_BUFFER_RETURN_NULL
+    CommandBufferCommonHeader *commandBufferHeader = (CommandBufferCommonHeader*) commandBuffer;
+
+    if (
+        commandBufferHeader->renderPass.inProgress ||
+        commandBufferHeader->computePass.inProgress ||
+        commandBufferHeader->copyPass.inProgress
+    ) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot submit command buffer while a pass is in progress!");
+        return NULL;
+    }
+
+    commandBufferHeader->submitted = SDL_TRUE;
+
+	return COMMAND_BUFFER_DEVICE->SubmitAndAcquireFence(
 		commandBuffer
 	);
 }
@@ -915,7 +1449,7 @@ Refresh_Fence* Refresh_SubmitAndAcquireFence(
 void Refresh_Wait(
 	Refresh_Device *device
 ) {
-	NULL_RETURN(device);
+	NULL_ASSERT(device);
 	device->Wait(
 		device->driverData
 	);
@@ -923,11 +1457,11 @@ void Refresh_Wait(
 
 void Refresh_WaitForFences(
 	Refresh_Device *device,
-	uint8_t waitAll,
-	uint32_t fenceCount,
+	SDL_bool waitAll,
+	Uint32 fenceCount,
 	Refresh_Fence **pFences
 ) {
-	NULL_RETURN(device);
+	NULL_ASSERT(device);
 	device->WaitForFences(
 		device->driverData,
 		waitAll,
@@ -936,13 +1470,11 @@ void Refresh_WaitForFences(
 	);
 }
 
-int Refresh_QueryFence(
+SDL_bool Refresh_QueryFence(
 	Refresh_Device *device,
 	Refresh_Fence *fence
 ) {
-	if (device == NULL) {
-		return 0;
-	}
+	if (device == NULL) { return 0; }
 
 	return device->QueryFence(
 		device->driverData,
@@ -954,11 +1486,46 @@ void Refresh_ReleaseFence(
 	Refresh_Device *device,
 	Refresh_Fence *fence
 ) {
-	NULL_RETURN(device);
+	NULL_ASSERT(device);
 	device->ReleaseFence(
 		device->driverData,
 		fence
 	);
 }
 
-/* vim: set noexpandtab shiftwidth=8 tabstop=8: */
+void Refresh_OcclusionQueryBegin(
+    Refresh_CommandBuffer *commandBuffer,
+    Refresh_OcclusionQuery *query
+) {
+    NULL_ASSERT(commandBuffer);
+    COMMAND_BUFFER_DEVICE->OcclusionQueryBegin(
+        commandBuffer,
+        query
+    );
+}
+
+void Refresh_OcclusionQueryEnd(
+    Refresh_CommandBuffer *commandBuffer,
+    Refresh_OcclusionQuery *query
+) {
+    NULL_ASSERT(commandBuffer);
+    COMMAND_BUFFER_DEVICE->OcclusionQueryEnd(
+        commandBuffer,
+        query
+    );
+}
+
+SDL_bool Refresh_OcclusionQueryPixelCount(
+    Refresh_Device *device,
+    Refresh_OcclusionQuery *query,
+    Uint32 *pixelCount
+) {
+    if (device == NULL)
+        return SDL_FALSE;
+
+    return device->OcclusionQueryPixelCount(
+        device->driverData,
+        query,
+        pixelCount
+    );
+}

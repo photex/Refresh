@@ -1,6 +1,4 @@
-[![Build Status](https://gitea.drone.moonside.games/api/badges/MoonsideGames/Refresh/status.svg)](https://gitea.drone.moonside.games/MoonsideGames/Refresh)
-
-This is Refresh, an XNA-inspired 3D graphics library with modern capabilities.
+This is Refresh, a cross-platform hardware-accelerated graphics library with modern capabilities.
 
 License
 -------
@@ -8,16 +6,20 @@ Refresh is licensed under the zlib license. See LICENSE for details.
 
 About Refresh
 -------------
-Refresh is directly inspired by FNA3D and intended to be a replacement for XNA's Graphics namespace.
-XNA 4.0 is a powerful API, but its shader system is outdated and certain restrictions are awkward to handle in a modern context.
-In the way that XNA was "one step above" DX9, Refresh intends to be "one step above" Vulkan. It should map nicely to modern graphics APIs.
-Refresh will initially have a Vulkan runtime implementation. Support for other APIs like DX12 may come later.
-For shaders, we consume SPIR-V bytecode.
+The contemporary graphics landscape is daunting. Older and easier-to-learn APIs like OpenGL are being replaced by explicit APIs like Vulkan.
+These newer APIs have many appealing features, like threading support and bundled state management,
+but using them in practice requires complex management of memory and synchronization.
+What's a developer to do?
+
+Refresh is a middle ground between these two extremes. The API aims for the simplicity of OpenGL combined with the power of Vulkan.
+Refresh supports all desktop platforms. Vulkan and D3D11 backends are complete, and Metal support is coming soon.
+Refresh supports portable shaders through SPIRV-Cross, but it also allows you to provide backend-specific shader formats, so you can use any shader toolchain you like.
 
 Dependencies
 ------------
 Refresh depends on SDL2 for portability.
 Refresh never explicitly uses the C runtime.
+SPIRV-Cross is dynamically linked as an optional dependency.
 
 Building Refresh
 ----------------
@@ -34,4 +36,4 @@ Want to contribute?
 -------------------
 Issues can be reported and patches contributed via Github:
 
-https://github.com/thatcosmonaut/Refresh
+https://github.com/MoonsideGames/Refresh

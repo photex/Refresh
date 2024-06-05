@@ -15,3 +15,7 @@ xcuserdata/
 build/
 CMakeCache.txt
 cmake.check_cache
+moonbuild/
+moonbuildMac/
+moonbuildWin64/
+dist/

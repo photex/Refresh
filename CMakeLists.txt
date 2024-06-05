@@ -7,9 +7,9 @@ project(Refresh C)
 option(BUILD_SHARED_LIBS "Build shared library" ON)
 
 # Version
-SET(LIB_MAJOR_VERSION "1")
-SET(LIB_MINOR_VERSION "15")
-SET(LIB_REVISION "4")
+SET(LIB_MAJOR_VERSION "2")
+SET(LIB_MINOR_VERSION "0")
+SET(LIB_REVISION "0")
 SET(LIB_VERSION "${LIB_MAJOR_VERSION}.${LIB_MINOR_VERSION}.${LIB_REVISION}")
 
 # Build Type
@@ -38,21 +38,38 @@ endif()
 
 # Defines
 add_definitions(
-	-DREFRESH_DRIVER_VULKAN
+	-DREFRESH_VULKAN
 )
+
+if (WIN32)
+	add_definitions(
+		-DREFRESH_D3D11
+	)
+endif()
+
+if (APPLE)
+	add_definitions(
+		-DREFRESH_METAL
+	)
+endif()
 
 # Source lists
 add_library(Refresh
 	# Public Headers
 	include/Refresh.h
-	include/Refresh_Image.h
+	include/Refresh_image.h
 	# Internal Headers
-	src/Refresh_Driver.h
-	src/Refresh_Driver_Vulkan_vkfuncs.h
+	src/Refresh_driver.h
+	src/Refresh_spirv_c.h
+	src/spirv_cross_c.h
+	src/vulkan/Refresh_vulkan_vkfuncs.h
 	# Source Files
 	src/Refresh.c
-	src/Refresh_Driver_Vulkan.c
-	src/Refresh_Image.c
+	src/Refresh_spirv.c
+	src/d3d11/Refresh_d3d11.c
+	src/d3d11/Refresh_d3d11_d3dcompiler.c
+	src/vulkan/Refresh_vulkan.c
+	src/Refresh_image.c
 )
 
 # Build flags
