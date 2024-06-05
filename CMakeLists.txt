@@ -102,9 +102,9 @@ endif()
 
 if (APPLE)
 	if(IOS OR TVOS OR VISIONOS OR WATCHOS)
-		sdl_link_dependency(Refresh LINK_OPTIONS "-Wl,-framework,Metal")
+		target_link_libraries(Refresh PRIVATE "-Wl,-framework,Metal")
 	else()
-		sdl_link_dependency(Refresh LINK_OPTIONS "-Wl,-weak_framework,Metal")
+		target_link_libraries(Refresh PRIVATE "-Wl,-weak_framework,Metal")
 	endif()
 endif()
 
