@@ -72,6 +72,12 @@ add_library(Refresh
 	src/Refresh_image.c
 )
 
+if (APPLE)
+    add_library(SDL_gpu
+        src/metal/SDL_gpu_metal.m
+    )
+endif()
+
 # Build flags
 if(NOT MSVC)
 	set_property(TARGET Refresh PROPERTY COMPILE_FLAGS "-std=gnu99 -Wall -Wno-strict-aliasing -pedantic")
