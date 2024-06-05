@@ -73,8 +73,8 @@ add_library(Refresh
 )
 
 if (APPLE)
-    add_library(SDL_gpu
-        src/metal/SDL_gpu_metal.m
+    add_library(Refresh
+        src/metal/Refresh_metal.m
     )
 endif()
 
