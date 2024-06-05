@@ -290,7 +290,7 @@ static MTLVertexStepFunction SDLToMetal_StepFunction[] =
 
 static MTLStoreAction SDLToMetal_StoreOp(
     Refresh_StoreOp storeOp,
-    Uint8 isMultisample
+    SDL_bool isMultisample
 ) {
     if (isMultisample)
     {
@@ -344,14 +344,14 @@ static MTLColorWriteMask SDLToMetal_ColorWriteMask(
 typedef struct MetalTexture
 {
     id<MTLTexture> handle;
-    SDL_AtomicInt referenceCount;
+    SDL_atomic_t referenceCount;
 } MetalTexture;
 
 typedef struct MetalTextureContainer
 {
     Refresh_TextureCreateInfo createInfo;
     MetalTexture *activeTexture;
-    Uint8 canBeCycled;
+    SDL_bool canBeCycled;
 
     Uint32 textureCapacity;
     Uint32 textureCount;
@@ -362,7 +362,7 @@ typedef struct MetalTextureContainer
 
 typedef struct MetalFence
 {
-    SDL_AtomicInt complete;
+    SDL_atomic_t complete;
 } MetalFence;
 
 typedef struct MetalWindowData
@@ -402,7 +402,7 @@ typedef struct MetalBuffer
 {
     id<MTLBuffer> handle;
     Uint32 size;
-    SDL_AtomicInt referenceCount;
+    SDL_atomic_t referenceCount;
 } MetalBuffer;
 
 typedef struct MetalBufferContainer
@@ -420,7 +420,7 @@ typedef struct MetalTransferBuffer
 {
     id<MTLBuffer> stagingBuffer;
     Uint32 size;
-    SDL_AtomicInt referenceCount;
+    SDL_atomic_t referenceCount;
 } MetalTransferBuffer;
 
 typedef struct MetalTransferBufferContainer
@@ -464,7 +464,7 @@ typedef struct MetalCommandBuffer
 
     /* Fences */
     MetalFence *fence;
-    Uint8 autoReleaseFence;
+    SDL_bool autoReleaseFence;
 
     /* Reference Counting */
     MetalBuffer **usedBuffers;
@@ -520,11 +520,11 @@ struct MetalRenderer
     Uint32 textureContainersToDestroyCount;
     Uint32 textureContainersToDestroyCapacity;
 
-    SDL_Mutex *submitLock;
-    SDL_Mutex *acquireCommandBufferLock;
-    SDL_Mutex *disposeLock;
-    SDL_Mutex *fenceLock;
-    SDL_Mutex *windowLock;
+    SDL_mutex *submitLock;
+    SDL_mutex *acquireCommandBufferLock;
+    SDL_mutex *disposeLock;
+    SDL_mutex *fenceLock;
+    SDL_mutex *windowLock;
 };
 
 /* Helper Functions */
@@ -1689,7 +1689,7 @@ static MetalCommandBuffer* METAL_INTERNAL_GetInactiveCommandBufferFromPool(
     return commandBuffer;
 }
 
-static Uint8 METAL_INTERNAL_CreateFence(
+static SDL_bool METAL_INTERNAL_CreateFence(
     MetalRenderer *renderer
 ) {
     MetalFence* fence;
@@ -1715,7 +1715,7 @@ static Uint8 METAL_INTERNAL_CreateFence(
     return 1;
 }
 
-static Uint8 METAL_INTERNAL_AcquireFence(
+static SDL_bool METAL_INTERNAL_AcquireFence(
     MetalRenderer *renderer,
     MetalCommandBuffer *commandBuffer
 ) {
@@ -2401,8 +2401,7 @@ static int METAL_QueryFence(
 
 static MetalWindowData* METAL_INTERNAL_FetchWindowData(SDL_Window *window)
 {
-    SDL_PropertiesID properties = SDL_GetWindowProperties(window);
-    return (MetalWindowData*) SDL_GetProperty(properties, WINDOW_PROPERTY_DATA, NULL);
+    return (WindowData*) SDL_GetWindowData(window, WINDOW_PROPERTY_DATA);
 }
 
 static SDL_bool METAL_SupportsSwapchainComposition(
@@ -2414,7 +2413,7 @@ static SDL_bool METAL_SupportsSwapchainComposition(
     return SDL_FALSE;
 }
 
-static Uint8 METAL_INTERNAL_CreateSwapchain(
+static SDL_bool METAL_INTERNAL_CreateSwapchain(
     MetalRenderer *renderer,
     MetalWindowData *windowData,
     Refresh_PresentMode presentMode
@@ -2488,7 +2487,7 @@ static SDL_bool METAL_ClaimWindow(
 
         if (METAL_INTERNAL_CreateSwapchain(renderer, windowData, presentMode))
         {
-            SDL_SetProperty(SDL_GetWindowProperties(window), WINDOW_PROPERTY_DATA, windowData);
+            SDL_SetWindowData(window, WINDOW_PROPERTY_DATA, windowData);
 
             SDL_LockMutex(renderer->windowLock);
 
@@ -2552,8 +2551,7 @@ static void METAL_UnclaimWindow(
     SDL_UnlockMutex(renderer->windowLock);
 
     SDL_free(windowData);
-
-    SDL_ClearProperty(SDL_GetWindowProperties(window), WINDOW_PROPERTY_DATA);
+    SDL_SetWindowData(window, WINDOW_PROPERTY_DATA, NULL);
 }
 
 static Refresh_Texture* METAL_AcquireSwapchainTexture(
@@ -2847,7 +2845,7 @@ static Refresh_Shader* METAL_CompileFromSPIRVCross(
 
 /* Device Creation */
 
-static Uint8 METAL_PrepareDriver(SDL_VideoDevice *_this)
+static SDL_bool METAL_PrepareDriver(SDL_VideoDevice *_this)
 {
     /* FIXME: Add a macOS / iOS version check! Maybe support >= 10.14? */
     return (_this->Metal_CreateView != NULL);
