@@ -633,8 +633,8 @@ typedef struct Refresh_GraphicsPipelineAttachmentInfo
 typedef struct Refresh_GraphicsPipelineResourceInfo
 {
     Uint32 samplerCount;
+	Uint32 storageTextureCount;
     Uint32 storageBufferCount;
-    Uint32 storageTextureCount;
     Uint32 uniformBufferCount;
 } Refresh_GraphicsPipelineResourceInfo;
 
@@ -2009,8 +2009,8 @@ REFRESHAPI void Refresh_Wait(
 REFRESHAPI void Refresh_WaitForFences(
 	Refresh_Device *device,
 	SDL_bool waitAll,
-	Uint32 fenceCount,
-	Refresh_Fence **pFences
+	Refresh_Fence **pFences,
+	Uint32 fenceCount
 );
 
 /**

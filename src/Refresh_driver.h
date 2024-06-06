@@ -655,8 +655,8 @@ struct Refresh_Device
 	void (*WaitForFences)(
 		Refresh_Renderer *driverData,
 		SDL_bool waitAll,
-		Uint32 fenceCount,
-		Refresh_Fence **pFences
+		Refresh_Fence **pFences,
+		Uint32 fenceCount
 	);
 
 	SDL_bool (*QueryFence)(

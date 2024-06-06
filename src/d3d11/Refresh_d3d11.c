@@ -5358,8 +5358,8 @@ static void D3D11_INTERNAL_WaitForFence(
 static void D3D11_WaitForFences(
 	Refresh_Renderer *driverData,
 	SDL_bool waitAll,
-	Uint32 fenceCount,
-	Refresh_Fence **pFences
+	Refresh_Fence **pFences,
+	Uint32 fenceCount
 ) {
 	D3D11Renderer *renderer = (D3D11Renderer*) driverData;
 	D3D11Fence *fence;
@@ -5993,8 +5993,8 @@ static Refresh_Texture* D3D11_AcquireSwapchainTexture(
 			D3D11_WaitForFences(
 				(Refresh_Renderer*) renderer,
 				SDL_TRUE,
-				1,
-				(Refresh_Fence**) &windowData->inFlightFences[windowData->frameCounter]
+				(Refresh_Fence**) &windowData->inFlightFences[windowData->frameCounter],
+				1
 			);
 		}
 		else

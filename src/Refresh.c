@@ -1458,15 +1458,15 @@ void Refresh_Wait(
 void Refresh_WaitForFences(
 	Refresh_Device *device,
 	SDL_bool waitAll,
-	Uint32 fenceCount,
-	Refresh_Fence **pFences
+	Refresh_Fence **pFences,
+	Uint32 fenceCount
 ) {
 	NULL_ASSERT(device);
 	device->WaitForFences(
 		device->driverData,
 		waitAll,
-		fenceCount,
-		pFences
+		pFences,
+		fenceCount
 	);
 }
 

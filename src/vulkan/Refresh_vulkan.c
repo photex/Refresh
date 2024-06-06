@@ -1371,7 +1371,7 @@ static Uint8 VULKAN_INTERNAL_DefragmentMemory(VulkanRenderer *renderer);
 static void VULKAN_INTERNAL_BeginCommandBuffer(VulkanRenderer *renderer, VulkanCommandBuffer *commandBuffer);
 static void VULKAN_UnclaimWindow(Refresh_Renderer *driverData, SDL_Window *window);
 static void VULKAN_Wait(Refresh_Renderer *driverData);
-static void VULKAN_WaitForFences(Refresh_Renderer *driverData, SDL_bool waitAll, Uint32 fenceCount, Refresh_Fence **pFences);
+static void VULKAN_WaitForFences(Refresh_Renderer *driverData, SDL_bool waitAll, Refresh_Fence **pFences, Uint32 fenceCount);
 static void VULKAN_Submit(Refresh_CommandBuffer *commandBuffer);
 static VulkanTextureSlice* VULKAN_INTERNAL_FetchTextureSlice(VulkanTexture* texture, Uint32 layer, Uint32 level);
 static VulkanTexture* VULKAN_INTERNAL_CreateTexture(
@@ -10663,8 +10663,8 @@ static Refresh_Texture* VULKAN_AcquireSwapchainTexture(
             VULKAN_WaitForFences(
                 (Refresh_Renderer*) renderer,
                 SDL_TRUE,
-                1,
-                (Refresh_Fence**) &swapchainData->inFlightFences[swapchainData->frameCounter]
+                (Refresh_Fence**) &swapchainData->inFlightFences[swapchainData->frameCounter],
+                1
             );
         }
         else
@@ -11179,8 +11179,8 @@ static void VULKAN_INTERNAL_CleanCommandBuffer(
 static void VULKAN_WaitForFences(
     Refresh_Renderer *driverData,
     SDL_bool waitAll,
-    Uint32 fenceCount,
-    Refresh_Fence **pFences
+    Refresh_Fence **pFences,
+    Uint32 fenceCount
 ) {
     VulkanRenderer* renderer = (VulkanRenderer*) driverData;
     VkFence* fences = SDL_stack_alloc(VkFence, fenceCount);
