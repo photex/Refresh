@@ -3494,17 +3494,18 @@ static void VULKAN_INTERNAL_DestroyComputePipeline(
     SDL_free(computePipeline);
 }
 
-static void VULKAN_INTERNAL_DestroyShaderModule(
+static void VULKAN_INTERNAL_DestroyShader(
     VulkanRenderer *renderer,
-    VulkanShader *vulkanShaderModule
+    VulkanShader *vulkanShader
 ) {
     renderer->vkDestroyShaderModule(
         renderer->logicalDevice,
-        vulkanShaderModule->shaderModule,
+        vulkanShader->shaderModule,
         NULL
     );
 
-    SDL_free(vulkanShaderModule);
+    SDL_free((void*) vulkanShader->entryPointName);
+    SDL_free(vulkanShader);
 }
 
 static void VULKAN_INTERNAL_DestroySampler(
@@ -5872,13 +5873,13 @@ static void VULKAN_SetBufferName(
     {
         container->debugName = SDL_realloc(
             container->debugName,
-            SDL_strlen(text) + 1
+            SDL_utf8strlen(text) + 1
         );
 
         SDL_utf8strlcpy(
             container->debugName,
             text,
-            SDL_strlen(text) + 1
+            SDL_utf8strlen(text) + 1
         );
 
         for (Uint32 i = 0; i < container->bufferCount; i += 1)
@@ -5926,13 +5927,13 @@ static void VULKAN_SetTextureName(
     {
         container->debugName = SDL_realloc(
             container->debugName,
-            SDL_strlen(text) + 1
+            SDL_utf8strlen(text) + 1
         );
 
         SDL_utf8strlcpy(
             container->debugName,
             text,
-            SDL_strlen(text) + 1
+            SDL_utf8strlen(text) + 1
         );
 
         for (Uint32 i = 0; i < container->textureCount; i += 1)
@@ -7328,6 +7329,7 @@ static Refresh_Shader* VULKAN_CreateShader(
     VkResult vulkanResult;
     VkShaderModuleCreateInfo vkShaderModuleCreateInfo;
     VulkanRenderer *renderer = (VulkanRenderer*) driverData;
+    size_t entryPointNameLength;
 
     if (shaderCreateInfo->format != REFRESH_SHADERFORMAT_SPIRV)
 	{
@@ -7356,7 +7358,9 @@ static Refresh_Shader* VULKAN_CreateShader(
         return NULL;
     }
 
-    vulkanShader->entryPointName = shaderCreateInfo->entryPointName;
+    entryPointNameLength = SDL_utf8strlen(shaderCreateInfo->entryPointName) + 1;
+    vulkanShader->entryPointName = SDL_malloc(entryPointNameLength);
+    SDL_utf8strlcpy((char*) vulkanShader->entryPointName, shaderCreateInfo->entryPointName, entryPointNameLength);
 
     SDL_AtomicSet(&vulkanShader->referenceCount, 0);
 
@@ -11005,7 +11009,7 @@ static void VULKAN_INTERNAL_PerformPendingDestroys(
     {
         if (SDL_AtomicGet(&renderer->shadersToDestroy[i]->referenceCount) == 0)
         {
-            VULKAN_INTERNAL_DestroyShaderModule(
+            VULKAN_INTERNAL_DestroyShader(
                 renderer,
                 renderer->shadersToDestroy[i]
             );
