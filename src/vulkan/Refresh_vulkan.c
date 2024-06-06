@@ -5868,18 +5868,19 @@ static void VULKAN_SetBufferName(
 ) {
     VulkanRenderer *renderer = (VulkanRenderer*) driverData;
     VulkanBufferContainer *container = (VulkanBufferContainer*) buffer;
+    size_t textLength = SDL_strlen(text) + 1;
 
     if (renderer->debugMode && renderer->supportsDebugUtils)
     {
         container->debugName = SDL_realloc(
             container->debugName,
-            SDL_utf8strlen(text) + 1
+            textLength
         );
 
         SDL_utf8strlcpy(
             container->debugName,
             text,
-            SDL_utf8strlen(text) + 1
+            textLength
         );
 
         for (Uint32 i = 0; i < container->bufferCount; i += 1)
@@ -5922,18 +5923,19 @@ static void VULKAN_SetTextureName(
 ) {
     VulkanRenderer *renderer = (VulkanRenderer*) driverData;
     VulkanTextureContainer *container = (VulkanTextureContainer*) texture;
+    size_t textLength = SDL_strlen(text) + 1;
 
     if (renderer->debugMode && renderer->supportsDebugUtils)
     {
         container->debugName = SDL_realloc(
             container->debugName,
-            SDL_utf8strlen(text) + 1
+            textLength
         );
 
         SDL_utf8strlcpy(
             container->debugName,
             text,
-            SDL_utf8strlen(text) + 1
+            textLength
         );
 
         for (Uint32 i = 0; i < container->textureCount; i += 1)
@@ -7358,7 +7360,7 @@ static Refresh_Shader* VULKAN_CreateShader(
         return NULL;
     }
 
-    entryPointNameLength = SDL_utf8strlen(shaderCreateInfo->entryPointName) + 1;
+    entryPointNameLength = SDL_strlen(shaderCreateInfo->entryPointName) + 1;
     vulkanShader->entryPointName = SDL_malloc(entryPointNameLength);
     SDL_utf8strlcpy((char*) vulkanShader->entryPointName, shaderCreateInfo->entryPointName, entryPointNameLength);
 

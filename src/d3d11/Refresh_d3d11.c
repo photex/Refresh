@@ -1742,18 +1742,19 @@ static void D3D11_SetBufferName(
 ) {
 	D3D11Renderer *renderer = (D3D11Renderer*) driverData;
 	D3D11BufferContainer *container = (D3D11BufferContainer*) buffer;
+	size_t textLength = SDL_strlen(text) + 1;
 
 	if (renderer->debugMode)
 	{
 		container->debugName = SDL_realloc(
 			container->debugName,
-			SDL_strlen(text) + 1
+			textLength
 		);
 
 		SDL_utf8strlcpy(
 			container->debugName,
 			text,
-			SDL_strlen(text) + 1
+			textLength
 		);
 
 		for (Uint32 i = 0; i < container->bufferCount; i += 1)
@@ -1790,18 +1791,19 @@ static void D3D11_SetTextureName(
 ) {
 	D3D11Renderer *renderer = (D3D11Renderer*) driverData;
 	D3D11TextureContainer *container = (D3D11TextureContainer*) texture;
+	size_t textLength = SDL_strlen(text) + 1;
 
 	if (renderer->debugMode)
 	{
 		container->debugName = SDL_realloc(
 			container->debugName,
-			SDL_strlen(text) + 1
+			textLength
 		);
 
 		SDL_utf8strlcpy(
 			container->debugName,
 			text,
-			SDL_strlen(text) + 1
+			textLength
 		);
 
 		for (Uint32 i = 0; i < container->textureCount; i += 1)
