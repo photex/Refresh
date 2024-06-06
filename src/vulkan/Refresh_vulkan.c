@@ -1386,7 +1386,8 @@ static VulkanTexture* VULKAN_INTERNAL_CreateTexture(
     VkFormat format,
     VkComponentMapping swizzle,
     VkImageAspectFlags aspectMask,
-    Refresh_TextureUsageFlags textureUsageFlags
+    Refresh_TextureUsageFlags textureUsageFlags,
+    SDL_bool isMSAAColorTarget
 );
 
 /* Error Handling */
@@ -5982,7 +5983,8 @@ static VulkanTextureHandle* VULKAN_INTERNAL_CreateTextureHandle(
     VkFormat format,
     VkComponentMapping swizzle,
     VkImageAspectFlags aspectMask,
-    Refresh_TextureUsageFlags textureUsageFlags
+    Refresh_TextureUsageFlags textureUsageFlags,
+    SDL_bool isMSAAColorTarget
 ) {
     VulkanTextureHandle *textureHandle;
     VulkanTexture *texture;
@@ -5999,7 +6001,8 @@ static VulkanTextureHandle* VULKAN_INTERNAL_CreateTextureHandle(
         format,
         swizzle,
         aspectMask,
-        textureUsageFlags
+        textureUsageFlags,
+        isMSAAColorTarget
     );
 
     if (texture == NULL)
@@ -6029,7 +6032,8 @@ static VulkanTexture* VULKAN_INTERNAL_CreateTexture(
     VkFormat format,
     VkComponentMapping swizzle,
     VkImageAspectFlags aspectMask,
-    Refresh_TextureUsageFlags textureUsageFlags
+    Refresh_TextureUsageFlags textureUsageFlags,
+    SDL_bool isMSAAColorTarget
 ) {
     VkResult vulkanResult;
     VkImageCreateInfo imageCreateInfo;
@@ -6090,7 +6094,7 @@ static VulkanTexture* VULKAN_INTERNAL_CreateTexture(
     imageCreateInfo.extent.depth = depth;
     imageCreateInfo.mipLevels = levelCount;
     imageCreateInfo.arrayLayers = layerCount;
-    imageCreateInfo.samples = VULKAN_INTERNAL_IsVulkanDepthFormat(format) ? sampleCount : VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.samples = isMSAAColorTarget || VULKAN_INTERNAL_IsVulkanDepthFormat(format) ? sampleCount : VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageCreateInfo.usage = vkUsageFlags;
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -6217,6 +6221,7 @@ static VulkanTexture* VULKAN_INTERNAL_CreateTexture(
             if (
                 sampleCount > VK_SAMPLE_COUNT_1_BIT &&
                 isRenderTarget &&
+                !isMSAAColorTarget &&
                 !VULKAN_INTERNAL_IsVulkanDepthFormat(texture->format)
             ) {
                 texture->slices[sliceIndex].msaaTexHandle = VULKAN_INTERNAL_CreateTextureHandle(
@@ -6227,11 +6232,12 @@ static VulkanTexture* VULKAN_INTERNAL_CreateTexture(
                     0,
                     1,
                     1,
-                    VK_SAMPLE_COUNT_1_BIT,
+                    sampleCount,
                     texture->format,
                     texture->swizzle,
                     aspectMask,
-                    textureUsageFlags
+                    REFRESH_TEXTUREUSAGE_COLOR_TARGET_BIT,
+                    SDL_TRUE
                 );
             }
         }
@@ -6333,7 +6339,8 @@ static void VULKAN_INTERNAL_CycleActiveTexture(
         textureContainer->activeTextureHandle->vulkanTexture->format,
         textureContainer->activeTextureHandle->vulkanTexture->swizzle,
         textureContainer->activeTextureHandle->vulkanTexture->aspectFlags,
-        textureContainer->activeTextureHandle->vulkanTexture->usageFlags
+        textureContainer->activeTextureHandle->vulkanTexture->usageFlags,
+        SDL_FALSE
     );
 
     textureContainer->activeTextureHandle->container = textureContainer;
@@ -7418,7 +7425,8 @@ static Refresh_Texture* VULKAN_CreateTexture(
         format,
         swizzle,
         imageAspectFlags,
-        textureCreateInfo->usageFlags
+        textureCreateInfo->usageFlags,
+        SDL_FALSE
     );
 
     if (textureHandle == NULL)
@@ -11592,7 +11600,8 @@ static Uint8 VULKAN_INTERNAL_DefragmentMemory(
                 currentRegion->vulkanTexture->format,
                 currentRegion->vulkanTexture->swizzle,
                 currentRegion->vulkanTexture->aspectFlags,
-                currentRegion->vulkanTexture->usageFlags
+                currentRegion->vulkanTexture->usageFlags,
+                SDL_FALSE
             );
 
             if (newTexture == NULL)
