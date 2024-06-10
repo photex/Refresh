@@ -1,4 +1,4 @@
-/* Refresh - a cross-platform hardware-accelerated graphics library with modern capabilities
+﻿/* Refresh - a cross-platform hardware-accelerated graphics library with modern capabilities
  *
  * Copyright (c) 2020-2024 Evan Hemsley
  *
@@ -50,6 +50,8 @@ typedef spvc_result (*pfn_spvc_compiler_options_set_uint)(spvc_compiler_options,
 typedef spvc_result (*pfn_spvc_compiler_install_compiler_options)(spvc_compiler, spvc_compiler_options);
 typedef spvc_result (*pfn_spvc_compiler_compile)(spvc_compiler, const char **);
 typedef const char *(*pfn_spvc_context_get_last_error_string)(spvc_context);
+typedef SpvExecutionModel (*pfn_spvc_compiler_get_execution_model)(spvc_compiler compiler);
+typedef const char *(*pfn_spvc_compiler_get_cleansed_entry_point_name)(spvc_compiler compiler, const char *name, SpvExecutionModel model);
 
 static pfn_spvc_context_create SDL_spvc_context_create = NULL;
 static pfn_spvc_context_destroy SDL_spvc_context_destroy = NULL;
@@ -60,6 +62,8 @@ static pfn_spvc_compiler_options_set_uint SDL_spvc_compiler_options_set_uint = N
 static pfn_spvc_compiler_install_compiler_options SDL_spvc_compiler_install_compiler_options = NULL;
 static pfn_spvc_compiler_compile SDL_spvc_compiler_compile = NULL;
 static pfn_spvc_context_get_last_error_string SDL_spvc_context_get_last_error_string = NULL;
+static pfn_spvc_compiler_get_execution_model SDL_spvc_compiler_get_execution_model = NULL;
+static pfn_spvc_compiler_get_cleansed_entry_point_name SDL_spvc_compiler_get_cleansed_entry_point_name = NULL;
 
 void* Refresh_CompileFromSPIRV(
 	Refresh_Device *device,
@@ -123,6 +127,8 @@ void* Refresh_CompileFromSPIRV(
 	CHECK_FUNC(spvc_compiler_install_compiler_options)
 	CHECK_FUNC(spvc_compiler_compile)
 	CHECK_FUNC(spvc_context_get_last_error_string)
+	CHECK_FUNC(spvc_compiler_get_execution_model)
+	CHECK_FUNC(spvc_compiler_get_cleansed_entry_point_name)
 	#undef CHECK_FUNC
 
 	/* Create the SPIRV-Cross context */
@@ -175,6 +181,12 @@ void* Refresh_CompileFromSPIRV(
 		SDL_spvc_context_destroy(context);
 		return NULL;
 	}
+
+    /* Determine the "cleansed" entrypoint name (e.g. main -> main0 on MSL) */
+    cleansed_entrypoint = SDL_spvc_compiler_get_cleansed_entry_point_name(
+        compiler,
+        createInfo->entryPointName,
+        SDL_spvc_compiler_get_execution_model(compiler));
 
 	/* Copy the original create info, but with the new source code */
 	if (isCompute)

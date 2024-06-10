@@ -1606,7 +1606,7 @@ static ID3D11InputLayout* D3D11_INTERNAL_FetchInputLayout(
 		];
 		/* The spec requires this to be 0 for per-vertex data */
 		elementDescs[i].InstanceDataStepRate = (
-            inputState.vertexBindings[bindingIndex].stepRate > 0 ?
+            inputState.vertexBindings[bindingIndex].inputRate == REFRESH_VERTEXINPUTRATE_INSTANCE ?
                 inputState.vertexBindings[bindingIndex].stepRate :
                 0
         );
