@@ -206,14 +206,14 @@ typedef Uint32 Refresh_TransferBufferMapFlags;
 typedef enum Refresh_ShaderStage
 {
 	REFRESH_SHADERSTAGE_VERTEX,
-	REFRESH_SHADERSTAGE_FRAGMENT,
-	REFRESH_SHADERSTAGE_COMPUTE
+	REFRESH_SHADERSTAGE_FRAGMENT
 } Refresh_ShaderStage;
 
 typedef enum Refresh_ShaderFormat
 {
 	REFRESH_SHADERFORMAT_INVALID,
 	REFRESH_SHADERFORMAT_SPIRV,	/* Vulkan */
+	REFRESH_SHADERFORMAT_HLSL,	/* D3D11, D3D12 */
 	REFRESH_SHADERFORMAT_DXBC,	/* D3D11, D3D12 */
 	REFRESH_SHADERFORMAT_DXIL,	/* D3D12 */
 	REFRESH_SHADERFORMAT_MSL,	/* Metal */
@@ -564,8 +564,12 @@ typedef struct Refresh_ShaderCreateInfo
 	size_t codeSize;
 	const Uint8 *code;
 	const char* entryPointName;
-	Refresh_ShaderStage stage;
 	Refresh_ShaderFormat format;
+	Refresh_ShaderStage stage;
+	Uint32 samplerCount;
+	Uint32 storageTextureCount;
+	Uint32 storageBufferCount;
+	Uint32 uniformBufferCount;
 } Refresh_ShaderCreateInfo;
 
 typedef struct Refresh_TextureCreateInfo
@@ -630,14 +634,6 @@ typedef struct Refresh_GraphicsPipelineAttachmentInfo
 	Refresh_TextureFormat depthStencilFormat;
 } Refresh_GraphicsPipelineAttachmentInfo;
 
-typedef struct Refresh_GraphicsPipelineResourceInfo
-{
-    Uint32 samplerCount;
-	Uint32 storageTextureCount;
-    Uint32 storageBufferCount;
-    Uint32 uniformBufferCount;
-} Refresh_GraphicsPipelineResourceInfo;
-
 typedef struct Refresh_GraphicsPipelineCreateInfo
 {
 	Refresh_Shader *vertexShader;
@@ -648,24 +644,23 @@ typedef struct Refresh_GraphicsPipelineCreateInfo
 	Refresh_MultisampleState multisampleState;
 	Refresh_DepthStencilState depthStencilState;
 	Refresh_GraphicsPipelineAttachmentInfo attachmentInfo;
-	Refresh_GraphicsPipelineResourceInfo vertexResourceInfo;
-    Refresh_GraphicsPipelineResourceInfo fragmentResourceInfo;
 	float blendConstants[4];
 } Refresh_GraphicsPipelineCreateInfo;
 
-typedef struct Refresh_ComputePipelineResourceInfo
-{
-    Uint32 readOnlyStorageTextureCount;
-    Uint32 readOnlyStorageBufferCount;
-    Uint32 readWriteStorageTextureCount;
-    Uint32 readWriteStorageBufferCount;
-    Uint32 uniformBufferCount;
-} Refresh_ComputePipelineResourceInfo;
-
 typedef struct Refresh_ComputePipelineCreateInfo
 {
-	Refresh_Shader *computeShader;
-	Refresh_ComputePipelineResourceInfo pipelineResourceInfo;
+	size_t codeSize;
+	const Uint8 *code;
+	const char *entryPointName;
+	Refresh_ShaderFormat format;
+	Uint32 readOnlyStorageTextureCount;
+	Uint32 readOnlyStorageBufferCount;
+	Uint32 readWriteStorageTextureCount;
+	Uint32 readWriteStorageBufferCount;
+	Uint32 uniformBufferCount;
+	Uint32 threadCountX;
+	Uint32 threadCountY;
+	Uint32 threadCountZ;
 } Refresh_ComputePipelineCreateInfo;
 
 typedef struct Refresh_ColorAttachmentInfo
@@ -848,7 +843,6 @@ REFRESHAPI Refresh_Backend Refresh_GetBackend(Refresh_Device *device);
  * \param computePipelineCreateInfo a struct describing the state of the requested compute pipeline
  * \returns a compute pipeline object on success, or NULL on failure
  *
- * \sa Refresh_CreateShader
  * \sa Refresh_BindComputePipeline
  * \sa Refresh_ReleaseComputePipeline
  */
@@ -890,14 +884,13 @@ REFRESHAPI Refresh_Sampler* Refresh_CreateSampler(
 );
 
 /**
- * Creates a shader to be used when creating a graphics or compute pipeline.
+ * Creates a shader to be used when creating a graphics pipeline.
  *
  * \param device a GPU Context
  * \param shaderCreateInfo a struct describing the state of the desired shader
  * \returns a shader object on success, or NULL on failure
  *
  * \sa Refresh_CreateGraphicsPipeline
- * \sa Refresh_CreateComputePipeline
  * \sa Refresh_ReleaseShader
  */
 REFRESHAPI Refresh_Shader* Refresh_CreateShader(
@@ -1084,18 +1077,6 @@ REFRESHAPI void Refresh_ReleaseTransferBuffer(
 );
 
 /**
- * Frees the given shader as soon as it is safe to do so.
- * You must not reference the shader after calling this function.
- *
- * \param device a GPU context
- * \param shader a shader to be destroyed
- */
-REFRESHAPI void Refresh_ReleaseShader(
-	Refresh_Device *device,
-	Refresh_Shader *shader
-);
-
-/**
  * Frees the given compute pipeline as soon as it is safe to do so.
  * You must not reference the compute pipeline after calling this function.
  *
@@ -1105,6 +1086,18 @@ REFRESHAPI void Refresh_ReleaseShader(
 REFRESHAPI void Refresh_ReleaseComputePipeline(
 	Refresh_Device *device,
 	Refresh_ComputePipeline *computePipeline
+);
+
+/**
+ * Frees the given shader as soon as it is safe to do so.
+ * You must not reference the shader after calling this function.
+ *
+ * \param device a GPU context
+ * \param shader a shader to be destroyed
+ */
+REFRESHAPI void Refresh_ReleaseShader(
+	Refresh_Device *device,
+	Refresh_Shader *shader
 );
 
 /**
@@ -1511,7 +1504,7 @@ REFRESHAPI void Refresh_BindComputePipeline(
 );
 
 /**
- * Binds storage textures as readonly for use on the compute shader.
+ * Binds storage textures as readonly for use on the compute pipeline.
  * These textures must have been created with REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_READ_BIT.
  *
  * \param computePass a compute pass handle
@@ -1527,7 +1520,7 @@ REFRESHAPI void Refresh_BindComputeStorageTextures(
 );
 
 /**
- * Binds storage buffers as readonly for use on the compute shader.
+ * Binds storage buffers as readonly for use on the compute pipeline.
  * These buffers must have been created with REFRESH_BUFFERUSAGE_COMPUTE_STORAGE_READ_BIT.
  *
  * \param computePass a compute pass handle

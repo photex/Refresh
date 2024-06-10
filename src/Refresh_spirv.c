@@ -61,21 +61,39 @@ static pfn_spvc_compiler_install_compiler_options SDL_spvc_compiler_install_comp
 static pfn_spvc_compiler_compile SDL_spvc_compiler_compile = NULL;
 static pfn_spvc_context_get_last_error_string SDL_spvc_context_get_last_error_string = NULL;
 
-Refresh_Shader* SDL_CreateShaderFromSPIRV(Refresh_Device *device, Refresh_ShaderCreateInfo *createInfo)
-{
-	Refresh_Shader *shader;
+void* Refresh_CompileFromSPIRV(
+	Refresh_Device *device,
+	void* originalCreateInfo,
+	SDL_bool isCompute
+){
+	Refresh_ShaderCreateInfo *createInfo;
+	Refresh_ShaderFormat format;
 	spvc_result result;
 	spvc_backend backend;
 	spvc_context context = NULL;
 	spvc_parsed_ir ir = NULL;
 	spvc_compiler compiler = NULL;
 	spvc_compiler_options options = NULL;
-	const char* translated = NULL;
+	const char* translated_source = NULL;
+	const char* cleansed_entrypoint;
+	void *compiledResult;
+
+	/* Refresh_ShaderCreateInfo and Refresh_ComputePipelineCreateInfo
+     * share the same struct layout for their first 3 members, which
+     * is all we need to transpile them!
+     */
+	createInfo = (Refresh_ShaderCreateInfo*) originalCreateInfo;
 
 	switch (Refresh_GetBackend(device))
 	{
-	case REFRESH_BACKEND_D3D11: backend = SPVC_BACKEND_HLSL; break;
-	case REFRESH_BACKEND_METAL: backend = SPVC_BACKEND_MSL; break;
+	case REFRESH_BACKEND_D3D11:
+		backend = SPVC_BACKEND_HLSL;
+		format = REFRESH_SHADERFORMAT_HLSL;
+		break;
+	case REFRESH_BACKEND_METAL:
+		backend = SPVC_BACKEND_MSL;
+		format = REFRESH_SHADERFORMAT_MSL;
+		break;
 	default:
 		SDL_SetError("SDL_CreateShaderFromSPIRV: Unexpected Refresh_Backend");
 		return NULL;
@@ -151,18 +169,41 @@ Refresh_Shader* SDL_CreateShaderFromSPIRV(Refresh_Device *device, Refresh_Shader
 	}
 
 	/* Compile to the target shader language */
-	result = SDL_spvc_compiler_compile(compiler, &translated);
+	result = SDL_spvc_compiler_compile(compiler, &translated_source);
 	if (result < 0) {
 		SPVC_ERROR(spvc_compiler_compile);
 		SDL_spvc_context_destroy(context);
 		return NULL;
 	}
 
-	/* Compile the shader */
-	shader = device->CompileFromSPIRVCross(device->driverData, createInfo->stage, createInfo->entryPointName, translated);
+	/* Copy the original create info, but with the new source code */
+	if (isCompute)
+	{
+		Refresh_ComputePipelineCreateInfo newCreateInfo;
+		newCreateInfo = *(Refresh_ComputePipelineCreateInfo *) createInfo;
+		newCreateInfo.format = format;
+		newCreateInfo.code = (const Uint8 *) translated_source;
+		newCreateInfo.codeSize = SDL_strlen(translated_source) + 1;
+		newCreateInfo.entryPointName = cleansed_entrypoint;
+
+		/* Create the pipeline! */
+		compiledResult = Refresh_CreateComputePipeline(device, &newCreateInfo);
+	}
+	else
+	{
+		Refresh_ShaderCreateInfo newCreateInfo;
+		newCreateInfo = *createInfo;
+		newCreateInfo.format = format;
+		newCreateInfo.code = (const Uint8 *) translated_source;
+		newCreateInfo.codeSize = SDL_strlen(translated_source) + 1;
+		newCreateInfo.entryPointName = cleansed_entrypoint;
+
+		/* Create the shader! */
+		compiledResult = Refresh_CreateShader(device, &newCreateInfo);
+	}
 
 	/* Clean up */
 	SDL_spvc_context_destroy(context);
 
-	return shader;
+	return compiledResult;
 }

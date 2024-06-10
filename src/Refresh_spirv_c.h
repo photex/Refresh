@@ -23,9 +23,10 @@
  * Evan "cosmonaut" Hemsley <evan@moonside.games>
  *
  */
-#include <SDL.h>
+#include "Refresh_driver.h"
 
-extern Refresh_Shader* SDL_CreateShaderFromSPIRV(
+extern void* Refresh_CompileFromSPIRV(
 	Refresh_Device *device,
-    Refresh_ShaderCreateInfo *createInfo
+    void *createInfo,
+	SDL_bool isCompute
 );

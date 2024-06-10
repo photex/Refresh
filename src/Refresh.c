@@ -296,6 +296,19 @@ Refresh_ComputePipeline* Refresh_CreateComputePipeline(
 	Refresh_ComputePipelineCreateInfo *computePipelineCreateInfo
 ) {
 	NULL_ASSERT(device)
+	if (computePipelineCreateInfo->threadCountX == 0 ||
+	    computePipelineCreateInfo->threadCountY == 0 ||
+		computePipelineCreateInfo->threadCountZ == 0)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "All ComputePipeline threadCount dimensions must be at least 1!");
+		return NULL;
+	}
+
+	if (computePipelineCreateInfo->format == REFRESH_SHADERFORMAT_SPIRV && device->backend != REFRESH_BACKEND_VULKAN)
+	{
+		return Refresh_CompileFromSPIRV(device, computePipelineCreateInfo, SDL_TRUE);
+	}
+
 	return device->CreateComputePipeline(
 		device->driverData,
 		computePipelineCreateInfo
@@ -374,7 +387,7 @@ Refresh_Shader* Refresh_CreateShader(
 ) {
     if (shaderCreateInfo->format == REFRESH_SHADERFORMAT_SPIRV &&
         device->backend != REFRESH_BACKEND_VULKAN) {
-        return SDL_CreateShaderFromSPIRV(device, shaderCreateInfo);
+        return Refresh_CompileFromSPIRV(device, shaderCreateInfo, SDL_FALSE);
     }
     return device->CreateShader(
         device->driverData,

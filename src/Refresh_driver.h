@@ -702,15 +702,6 @@ struct Refresh_Device
         Refresh_SampleCount desiredSampleCount
     );
 
-    /* SPIR-V Cross Interop */
-
-    Refresh_Shader* (*CompileFromSPIRVCross)(
-        Refresh_Renderer *driverData,
-        Refresh_ShaderStage shader_stage,
-        const char *entryPointName,
-        const char *source
-    );
-
 	/* Opaque pointer for the Driver */
 	Refresh_Renderer *driverData;
 
@@ -799,8 +790,7 @@ struct Refresh_Device
     ASSIGN_DRIVER_FUNC(OcclusionQueryEnd, name) \
     ASSIGN_DRIVER_FUNC(OcclusionQueryPixelCount, name) \
     ASSIGN_DRIVER_FUNC(IsTextureFormatSupported, name) \
-    ASSIGN_DRIVER_FUNC(GetBestSampleCount, name) \
-	ASSIGN_DRIVER_FUNC(CompileFromSPIRVCross, name)
+    ASSIGN_DRIVER_FUNC(GetBestSampleCount, name)
 
 typedef struct Refresh_Driver
 {

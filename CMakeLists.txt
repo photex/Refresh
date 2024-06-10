@@ -70,7 +70,6 @@ set(Refresh_source
 	src/Refresh.c
 	src/Refresh_spirv.c
 	src/d3d11/Refresh_d3d11.c
-	src/d3d11/Refresh_d3d11_d3dcompiler.c
 	src/vulkan/Refresh_vulkan.c
 	src/Refresh_image.c
 )
