@@ -35,9 +35,56 @@
 #include <dxgi.h>
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
+#include <d3dcompiler.h>
 
 #include "Refresh_driver.h"
 #include <SDL_syswm.h>
+
+/* __stdcall declaration, largely taken from vkd3d_windows.h */
+#ifdef _WIN32
+#define D3DCOMPILER_API STDMETHODCALLTYPE
+#else
+#ifdef __stdcall
+#undef __stdcall
+#endif
+#ifdef __x86_64__
+#define __stdcall __attribute__((ms_abi))
+#else
+#if (__GNUC__ > 4) || ((__GNUC__ == 4) && (__GNUC_MINOR__ >= 2)) || defined(__APPLE__)
+#define __stdcall __attribute__((__stdcall__)) __attribute__((__force_align_arg_pointer__))
+#else
+#define __stdcall __attribute__((__stdcall__))
+#endif
+#endif
+#define D3DCOMPILER_API __stdcall
+#endif
+
+/* vkd3d uses stdcall for its ID3D10Blob implementation */
+#ifndef _WIN32
+typedef struct VKD3DBlob VKD3DBlob;
+typedef struct VKD3DBlobVtbl
+{
+    HRESULT(__stdcall *QueryInterface)
+    (
+        VKD3DBlob *This,
+        REFIID riid,
+        void **ppvObject);
+    ULONG(__stdcall *AddRef)
+    (VKD3DBlob *This);
+    ULONG(__stdcall *Release)
+    (VKD3DBlob *This);
+    LPVOID(__stdcall *GetBufferPointer)
+    (VKD3DBlob *This);
+    SIZE_T(__stdcall *GetBufferSize)
+    (VKD3DBlob *This);
+} VKD3DBlobVtbl;
+struct VKD3DBlob
+{
+    const VKD3DBlobVtbl *lpVtbl;
+};
+#define ID3D10Blob VKD3DBlob
+#define ID3DBlob   VKD3DBlob
+#endif
 
 /* MinGW doesn't implement this yet */
 #ifdef _WIN32
@@ -47,6 +94,7 @@
 /* Function Pointer Signatures */
 typedef HRESULT(WINAPI* PFN_CREATE_DXGI_FACTORY1)(const GUID* riid, void** ppFactory);
 typedef HRESULT(WINAPI* PFN_DXGI_GET_DEBUG_INTERFACE)(const GUID* riid, void** ppDebug);
+typedef HRESULT(D3DCOMPILER_API *PFN_D3DCOMPILE)(LPCVOID pSrcData, SIZE_T SrcDataSize, LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs);
 
  /* IIDs (from https://magnumdb.com) */
 static const IID D3D_IID_IDXGIFactory1 = { 0x770aae78,0xf26f,0x4dba,{0xa8,0x29,0x25,0x3c,0x83,0xd1,0xb3,0x87} };
@@ -69,25 +117,29 @@ static const GUID D3D_IID_DXGI_DEBUG_ALL = { 0xe48ae283,0xda80,0x490b,{0x87,0xe6
  /* Defines */
 
 #if defined(_WIN32)
-#define D3D11_DLL     "d3d11.dll"
-#define DXGI_DLL      "dxgi.dll"
-#define DXGIDEBUG_DLL "dxgidebug.dll"
+#define D3D11_DLL       "d3d11.dll"
+#define DXGI_DLL        "dxgi.dll"
+#define DXGIDEBUG_DLL   "dxgidebug.dll"
 #elif defined(__APPLE__)
-#define D3D11_DLL     "libdxvk_d3d11.dylib"
-#define DXGI_DLL      "libdxvk_dxgi.dylib"
-#define DXGIDEBUG_DLL "libdxvk_dxgidebug.dylib"
+#define D3D11_DLL       "libdxvk_d3d11.dylib"
+#define DXGI_DLL        "libdxvk_dxgi.dylib"
+#define DXGIDEBUG_DLL   "libdxvk_dxgidebug.dylib"
+#define D3DCOMPILER_DLL "libvkd3d-utils.1.dylib"
 #else
-#define D3D11_DLL     "libdxvk_d3d11.so"
-#define DXGI_DLL      "libdxvk_dxgi.so"
-#define DXGIDEBUG_DLL "libdxvk_dxgidebug.so"
+#define D3D11_DLL       "libdxvk_d3d11.so"
+#define DXGI_DLL        "libdxvk_dxgi.so"
+#define DXGIDEBUG_DLL   "libdxvk_dxgidebug.so"
+#define D3DCOMPILER_DLL "libvkd3d-utils.so.1"
 #endif
 
-#define D3D11_CREATE_DEVICE_FUNC "D3D11CreateDevice"
-#define CREATE_DXGI_FACTORY1_FUNC "CreateDXGIFactory1"
+#define D3D11_CREATE_DEVICE_FUNC      "D3D11CreateDevice"
+#define CREATE_DXGI_FACTORY1_FUNC     "CreateDXGIFactory1"
+#define D3DCOMPILE_FUNC               "D3DCompile"
 #define DXGI_GET_DEBUG_INTERFACE_FUNC "DXGIGetDebugInterface"
-#define WINDOW_PROPERTY_DATA "Refresh_D3D11WindowPropertyData"
+#define WINDOW_PROPERTY_DATA          "Refresh_D3D11WindowPropertyData"
 
 #define UNIFORM_BUFFER_SIZE 1048576 /* 1 MiB */
+#define REFRESH_SHADERSTAGE_COMPUTE 2
 
 #ifdef _WIN32
 #define HRESULT_FMT "(0x%08lX)"
@@ -516,9 +568,14 @@ typedef struct D3D11WindowData
 
 typedef struct D3D11Shader
 {
-	ID3D11DeviceChild *shader; /* ID3D11VertexShader, ID3D11PixelShader, ID3D11ComputeShader */
+	ID3D11DeviceChild *handle; /* ID3D11VertexShader, ID3D11PixelShader, ID3D11ComputeShader */
     void* bytecode;
-    size_t bytecodeLength;
+    size_t bytecodeSize;
+
+	Uint32 samplerCount;
+	Uint32 uniformBufferCount;
+	Uint32 storageBufferCount;
+	Uint32 storageTextureCount;
 } D3D11Shader;
 
 typedef struct D3D11GraphicsPipeline
@@ -545,14 +602,14 @@ typedef struct D3D11GraphicsPipeline
 	Uint32 *vertexStrides;
 
     Uint32 vertexSamplerCount;
+	Uint32 vertexUniformBufferCount;
+	Uint32 vertexStorageBufferCount;
     Uint32 vertexStorageTextureCount;
-    Uint32 vertexStorageBufferCount;
-    Uint32 vertexUniformBufferCount;
 
     Uint32 fragmentSamplerCount;
+	Uint32 fragmentUniformBufferCount;
+	Uint32 fragmentStorageBufferCount;
     Uint32 fragmentStorageTextureCount;
-    Uint32 fragmentStorageBufferCount;
-    Uint32 fragmentUniformBufferCount;
 } D3D11GraphicsPipeline;
 
 typedef struct D3D11ComputePipeline
@@ -760,6 +817,9 @@ struct D3D11Renderer
 	void *dxgi_dll;
 	void *dxgidebug_dll;
 
+	void *d3dcompiler_dll;
+	PFN_D3DCOMPILE D3DCompile_func;
+
 	Uint8 debugMode;
 	BOOL supportsTearing;
 	Uint8 supportsFlipDiscard;
@@ -768,9 +828,6 @@ struct D3D11Renderer
     SDL_iconv_t iconv;
 
     /* Blit */
-    Refresh_Shader *fullscreenVertexShader;
-    Refresh_Shader *blitFrom2DPixelShader;
-    Refresh_Shader *blitFrom2DArrayPixelShader;
     Refresh_GraphicsPipeline *blitFrom2DPipeline;
     Refresh_GraphicsPipeline *blitFrom2DArrayPipeline; /* also cube */
     Refresh_Sampler *blitNearestSampler;
@@ -1083,6 +1140,7 @@ static void D3D11_DestroyDevice(
 	/* Release the DLLs */
 	SDL_UnloadObject(renderer->d3d11_dll);
 	SDL_UnloadObject(renderer->dxgi_dll);
+	SDL_UnloadObject(renderer->d3dcompiler_dll);
 	if (renderer->dxgidebug_dll)
 	{
 		SDL_UnloadObject(renderer->dxgidebug_dll);
@@ -1301,17 +1359,12 @@ static void D3D11_ReleaseShader(
 ) {
     (void) driverData; /* used by other backends */
 	D3D11Shader *d3dShader = (D3D11Shader*) shader;
-
-	if (d3dShader->shader)
-	{
-		ID3D11DeviceChild_Release(d3dShader->shader);
-	}
+	ID3D11DeviceChild_Release(d3dShader->handle);
 
     if (d3dShader->bytecode)
     {
         SDL_free(d3dShader->bytecode);
     }
-
 	SDL_free(d3dShader);
 }
 
@@ -1322,8 +1375,6 @@ static void D3D11_ReleaseComputePipeline(
 	D3D11ComputePipeline *d3d11ComputePipeline = (D3D11ComputePipeline*) computePipeline;
 
     ID3D11ComputeShader_Release(d3d11ComputePipeline->computeShader);
-
-    /* TODO: teardown resource layout structure */
 
 	SDL_free(d3d11ComputePipeline);
 }
@@ -1350,8 +1401,6 @@ static void D3D11_ReleaseGraphicsPipeline(
 
     ID3D11VertexShader_Release(d3d11GraphicsPipeline->vertexShader);
     ID3D11PixelShader_Release(d3d11GraphicsPipeline->fragmentShader);
-
-    /* TODO: teardown resource layout structure */
 
 	SDL_free(d3d11GraphicsPipeline);
 }
@@ -1592,22 +1641,137 @@ static ID3D11InputLayout* D3D11_INTERNAL_FetchInputLayout(
 
 /* Pipeline Creation */
 
+static ID3D11DeviceChild* D3D11_INTERNAL_CreateID3D11Shader(
+    D3D11Renderer *renderer,
+    Uint32 stage,
+    Refresh_ShaderFormat format,
+    const Uint8 *code,
+    size_t codeSize,
+    const char *entryPointName,
+    void **pBytecode,
+    size_t *pBytecodeSize
+) {
+    const char *profiles[3] = { "vs_5_0", "ps_5_0", "cs_5_0" };
+    ID3DBlob *blob = NULL;
+    ID3DBlob *errorBlob;
+    const Uint8 *bytecode;
+    size_t bytecodeSize;
+    ID3D11DeviceChild *handle = NULL;
+    HRESULT res;
+
+    if (format == REFRESH_SHADERFORMAT_HLSL) {
+        res = renderer->D3DCompile_func(
+            code,
+            codeSize,
+            NULL,
+            NULL,
+            NULL,
+            "main", /* entry point name ignored */
+            profiles[stage],
+            0,
+            0,
+            &blob,
+            &errorBlob);
+        if (res < 0) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", (const char *)ID3D10Blob_GetBufferPointer(errorBlob));
+            ID3D10Blob_Release(errorBlob);
+            return NULL;
+        }
+        bytecode = ID3D10Blob_GetBufferPointer(blob);
+        bytecodeSize = ID3D10Blob_GetBufferSize(blob);
+    } else if (format == REFRESH_SHADERFORMAT_DXBC) {
+        bytecode = code;
+        bytecodeSize = codeSize;
+    }
+    else {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Incompatible shader format for D3D11");
+        return NULL;
+    }
+
+    /* Create the shader from the byte blob */
+    if (stage == REFRESH_SHADERSTAGE_VERTEX) {
+        res = ID3D11Device_CreateVertexShader(
+            renderer->device,
+            bytecode,
+            bytecodeSize,
+            NULL,
+            (ID3D11VertexShader **)&handle);
+        if (FAILED(res)) {
+            D3D11_INTERNAL_LogError(renderer->device, "Could not create vertex shader", res);
+            return NULL;
+        }
+    } else if (stage == REFRESH_SHADERSTAGE_FRAGMENT) {
+        res = ID3D11Device_CreatePixelShader(
+            renderer->device,
+            bytecode,
+            bytecodeSize,
+            NULL,
+            (ID3D11PixelShader **)&handle);
+        if (FAILED(res)) {
+            D3D11_INTERNAL_LogError(renderer->device, "Could not create pixel shader", res);
+            return NULL;
+        }
+    } else if (stage == REFRESH_SHADERSTAGE_COMPUTE) {
+        res = ID3D11Device_CreateComputeShader(
+            renderer->device,
+            bytecode,
+            bytecodeSize,
+            NULL,
+            (ID3D11ComputeShader **)&handle);
+        if (FAILED(res)) {
+            D3D11_INTERNAL_LogError(renderer->device, "Could not create compute shader", res);
+            return NULL;
+        }
+    }
+
+    if (pBytecode != NULL) {
+        *pBytecode = SDL_malloc(bytecodeSize);
+        SDL_memcpy(*pBytecode, bytecode, bytecodeSize);
+        *pBytecodeSize = bytecodeSize;
+    }
+
+    /* Clean up */
+    if (blob) {
+        ID3D10Blob_Release(blob);
+    }
+
+    return handle;
+}
+
 static Refresh_ComputePipeline* D3D11_CreateComputePipeline(
 	Refresh_Renderer *driverData,
 	Refresh_ComputePipelineCreateInfo *pipelineCreateInfo
 ) {
-	(void) driverData; /* used by other backends */
-	D3D11Shader *shader = (D3D11Shader*) pipelineCreateInfo->computeShader;
+	D3D11Renderer *renderer = (D3D11Renderer*) driverData;
+	ID3D11ComputeShader *shader;
 	D3D11ComputePipeline *pipeline = SDL_malloc(sizeof(D3D11ComputePipeline));
 
-	pipeline->computeShader = (ID3D11ComputeShader*) shader->shader;
-    ID3D11ComputeShader_AddRef(pipeline->computeShader);
+	shader = (ID3D11ComputeShader*) D3D11_INTERNAL_CreateID3D11Shader(
+		renderer,
+		REFRESH_SHADERSTAGE_COMPUTE,
+		pipelineCreateInfo->format,
+		pipelineCreateInfo->code,
+		pipelineCreateInfo->codeSize,
+		pipelineCreateInfo->entryPointName,
+		NULL,
+		NULL
+	);
 
-    pipeline->readOnlyStorageTextureCount = pipelineCreateInfo->pipelineResourceInfo.readOnlyStorageTextureCount;
-    pipeline->readWriteStorageTextureCount = pipelineCreateInfo->pipelineResourceInfo.readWriteStorageTextureCount;
-    pipeline->readOnlyStorageBufferCount = pipelineCreateInfo->pipelineResourceInfo.readOnlyStorageBufferCount;
-    pipeline->readWriteStorageBufferCount = pipelineCreateInfo->pipelineResourceInfo.readWriteStorageBufferCount;
-    pipeline->uniformBufferCount = pipelineCreateInfo->pipelineResourceInfo.uniformBufferCount;
+	if (shader == NULL)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create compute pipeline!");
+		return NULL;
+	}
+
+	pipeline = SDL_malloc(sizeof(D3D11ComputePipeline));
+
+	pipeline->computeShader = shader;
+    pipeline->readOnlyStorageTextureCount = pipelineCreateInfo->readOnlyStorageTextureCount;
+    pipeline->readWriteStorageTextureCount = pipelineCreateInfo->readWriteStorageTextureCount;
+    pipeline->readOnlyStorageBufferCount = pipelineCreateInfo->readOnlyStorageBufferCount;
+    pipeline->readWriteStorageBufferCount = pipelineCreateInfo->readWriteStorageBufferCount;
+    pipeline->uniformBufferCount = pipelineCreateInfo->uniformBufferCount;
+	/* Thread counts are ignored in D3D11*/
 
 	return (Refresh_ComputePipeline*) pipeline;
 }
@@ -1670,10 +1834,10 @@ static Refresh_GraphicsPipeline* D3D11_CreateGraphicsPipeline(
 
 	/* Shaders */
 
-	pipeline->vertexShader = (ID3D11VertexShader*) vertShader->shader;
+	pipeline->vertexShader = (ID3D11VertexShader*) vertShader->handle;
     ID3D11VertexShader_AddRef(pipeline->vertexShader);
 
-	pipeline->fragmentShader = (ID3D11PixelShader*) fragShader->shader;
+	pipeline->fragmentShader = (ID3D11PixelShader*) fragShader->handle;
     ID3D11PixelShader_AddRef(pipeline->fragmentShader);
 
 	/* Input Layout */
@@ -1682,7 +1846,7 @@ static Refresh_GraphicsPipeline* D3D11_CreateGraphicsPipeline(
 		renderer,
 		pipelineCreateInfo->vertexInputState,
 		vertShader->bytecode,
-		vertShader->bytecodeLength
+		vertShader->bytecodeSize
 	);
 
 	if (pipelineCreateInfo->vertexInputState.vertexBindingCount > 0)
@@ -1704,15 +1868,15 @@ static Refresh_GraphicsPipeline* D3D11_CreateGraphicsPipeline(
 
     /* Resource layout */
 
-    pipeline->vertexSamplerCount = pipelineCreateInfo->vertexResourceInfo.samplerCount;
-    pipeline->vertexStorageTextureCount = pipelineCreateInfo->vertexResourceInfo.storageTextureCount;
-    pipeline->vertexStorageBufferCount = pipelineCreateInfo->vertexResourceInfo.storageBufferCount;
-    pipeline->vertexUniformBufferCount = pipelineCreateInfo->vertexResourceInfo.uniformBufferCount;
+    pipeline->vertexSamplerCount = vertShader->samplerCount;
+    pipeline->vertexStorageTextureCount = vertShader->storageTextureCount;
+    pipeline->vertexStorageBufferCount = vertShader->storageBufferCount;
+    pipeline->vertexUniformBufferCount = vertShader->uniformBufferCount;
 
-    pipeline->fragmentSamplerCount = pipelineCreateInfo->fragmentResourceInfo.samplerCount;
-    pipeline->fragmentStorageTextureCount = pipelineCreateInfo->fragmentResourceInfo.storageTextureCount;
-    pipeline->fragmentStorageBufferCount = pipelineCreateInfo->fragmentResourceInfo.storageBufferCount;
-    pipeline->fragmentUniformBufferCount = pipelineCreateInfo->fragmentResourceInfo.uniformBufferCount;
+    pipeline->fragmentSamplerCount = fragShader->samplerCount;
+    pipeline->fragmentStorageTextureCount = fragShader->storageTextureCount;
+    pipeline->fragmentStorageBufferCount = fragShader->storageBufferCount;
+    pipeline->fragmentUniformBufferCount = fragShader->uniformBufferCount;
 
 	return (Refresh_GraphicsPipeline*) pipeline;
 }
@@ -1921,76 +2085,41 @@ Refresh_Shader* D3D11_CreateShader(
 	Refresh_ShaderCreateInfo *shaderCreateInfo
 ) {
 	D3D11Renderer *renderer = (D3D11Renderer*) driverData;
-	D3D11Shader* shaderModule;
-	Refresh_ShaderStage shaderStage = shaderCreateInfo->stage;
-	ID3D11DeviceChild *shader = NULL;
-	HRESULT res;
+	ID3D11DeviceChild *handle;
+	void *bytecode;
+	size_t bytecodeSize;
+	D3D11Shader *shader;
 
-	if (shaderCreateInfo->format != REFRESH_SHADERFORMAT_DXBC)
+	handle = D3D11_INTERNAL_CreateID3D11Shader(
+		renderer,
+		shaderCreateInfo->stage,
+		shaderCreateInfo->format,
+		shaderCreateInfo->code,
+		shaderCreateInfo->codeSize,
+		shaderCreateInfo->entryPointName,
+		shaderCreateInfo->stage == REFRESH_SHADERSTAGE_VERTEX ? &bytecode : NULL,
+		shaderCreateInfo->stage == REFRESH_SHADERSTAGE_VERTEX ? &bytecodeSize : NULL
+	);
+
+	if (!handle)
 	{
-		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Incompatible shader format for D3D11");
 		return NULL;
 	}
 
-	/* Create the shader from the byte blob */
-	if (shaderStage == REFRESH_SHADERSTAGE_VERTEX)
+	shader = (D3D11Shader*) SDL_calloc(1, sizeof(D3D11Shader));
+	shader->handle = handle;
+	shader->samplerCount = shaderCreateInfo->samplerCount;
+	shader->storageBufferCount = shaderCreateInfo->storageBufferCount;
+	shader->storageTextureCount = shaderCreateInfo->storageTextureCount;
+	shader->uniformBufferCount = shaderCreateInfo->uniformBufferCount;
+
+	if (shaderCreateInfo->stage == REFRESH_SHADERSTAGE_VERTEX)
 	{
-		res = ID3D11Device_CreateVertexShader(
-			renderer->device,
-			shaderCreateInfo->code,
-			shaderCreateInfo->codeSize,
-			NULL,
-			(ID3D11VertexShader**) &shader
-		);
-		if (FAILED(res))
-		{
-			D3D11_INTERNAL_LogError(renderer->device, "Could not create vertex shader", res);
-			return NULL;
-		}
-	}
-	else if (shaderStage == REFRESH_SHADERSTAGE_FRAGMENT)
-	{
-		res = ID3D11Device_CreatePixelShader(
-			renderer->device,
-			shaderCreateInfo->code,
-			shaderCreateInfo->codeSize,
-			NULL,
-			(ID3D11PixelShader**) &shader
-		);
-		if (FAILED(res))
-		{
-			D3D11_INTERNAL_LogError(renderer->device, "Could not create pixel shader", res);
-			return NULL;
-		}
-	}
-	else if (shaderStage == REFRESH_SHADERSTAGE_COMPUTE)
-	{
-		res = ID3D11Device_CreateComputeShader(
-			renderer->device,
-            shaderCreateInfo->code,
-            shaderCreateInfo->codeSize,
-			NULL,
-			(ID3D11ComputeShader**) &shader
-		);
-		if (FAILED(res))
-		{
-			D3D11_INTERNAL_LogError(renderer->device, "Could not create compute shader", res);
-			return NULL;
-		}
+		shader->bytecode = bytecode;
+		shader->bytecodeSize = bytecodeSize;
 	}
 
-	/* Allocate and set up the shader module */
-	shaderModule = (D3D11Shader*) SDL_calloc(1, sizeof(D3D11Shader));
-	shaderModule->shader = shader;
-    if (shaderStage == REFRESH_SHADERSTAGE_VERTEX)
-    {
-        /* Store the raw bytecode and its length for creating InputLayouts */
-        shaderModule->bytecode = SDL_malloc(shaderCreateInfo->codeSize);
-        SDL_memcpy(shaderModule->bytecode, shaderCreateInfo->code, shaderCreateInfo->codeSize);
-        shaderModule->bytecodeLength = shaderCreateInfo->codeSize;
-    }
-
-	return (Refresh_Shader*) shaderModule;
+	return (Refresh_Shader*) shader;
 }
 
 static D3D11Texture* D3D11_INTERNAL_CreateTexture(
@@ -6444,23 +6573,15 @@ static Refresh_SampleCount D3D11_GetBestSampleCount(
     return (Refresh_SampleCount) SDL_min(maxSupported, desiredSampleCount);
 }
 
-/* SPIR-V Cross Interop */
-
-extern Refresh_Shader* D3D11_CompileFromSPIRVCross(
-    Refresh_Renderer *driverData,
-    Refresh_ShaderStage shader_stage,
-    const char *entryPointName,
-    const char *source
-);
-
 /* Device Creation */
 
 static SDL_bool D3D11_PrepareDriver()
 {
-	void *d3d11_dll, *dxgi_dll;
+	void *d3d11_dll, *dxgi_dll, *d3dcompiler_dll;
 	PFN_D3D11_CREATE_DEVICE D3D11CreateDeviceFunc;
 	D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_1 };
 	PFN_CREATE_DXGI_FACTORY1 CreateDXGIFactoryFunc;
+	PFN_D3DCOMPILE D3DCompileFunc;
 	HRESULT res;
 
 	/* Can we load D3D11? */
@@ -6526,6 +6647,26 @@ static SDL_bool D3D11_PrepareDriver()
 		return 0;
 	}
 
+	/* Can we load D3DCompiler? */
+
+	d3dcompiler_dll = SDL_LoadObject(D3DCOMPILER_DLL);
+	if (d3dcompiler_dll == NULL)
+	{
+		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "D3D11: Could not find " D3DCOMPILER_DLL);
+		return 0;
+	}
+
+	D3DCompileFunc = (PFN_D3DCOMPILE)SDL_LoadFunction(
+		d3dcompiler_dll,
+		D3DCOMPILE_FUNC
+	);
+	SDL_UnloadObject(d3dcompiler_dll); /* We're not going to call this function, so we can just unload now. */
+	if (D3DCompileFunc == NULL)
+	{
+		SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "D3D11: Could not find function D3DCompile in " D3DCOMPILER_DLL);
+		return 0;
+	}
+
 	return 1;
 }
 
@@ -6569,7 +6710,10 @@ static void D3D11_INTERNAL_TryInitializeDXGIDebug(D3D11Renderer *renderer)
 static void D3D11_INTERNAL_InitBlitPipelines(
     D3D11Renderer *renderer
 ) {
-    Refresh_ShaderCreateInfo shaderModuleCreateInfo;
+    Refresh_ShaderCreateInfo shaderCreateInfo;
+	Refresh_Shader *fullscreenVertexShader;
+	Refresh_Shader *blitFrom2DPixelShader;
+	Refresh_Shader *blitFrom2DArrayPixelShader;
     Refresh_GraphicsPipelineCreateInfo blitPipelineCreateInfo;
     Refresh_SamplerCreateInfo samplerCreateInfo;
     Refresh_VertexBinding binding;
@@ -6577,72 +6721,65 @@ static void D3D11_INTERNAL_InitBlitPipelines(
     Refresh_ColorAttachmentDescription colorAttachmentDesc;
 
     /* Fullscreen vertex shader */
-    shaderModuleCreateInfo.code = (Uint8*) D3D11_FullscreenVert;
-    shaderModuleCreateInfo.codeSize = sizeof(D3D11_FullscreenVert);
-    shaderModuleCreateInfo.stage = REFRESH_SHADERSTAGE_VERTEX;
-    shaderModuleCreateInfo.format = REFRESH_SHADERFORMAT_DXBC;
-    shaderModuleCreateInfo.entryPointName = "main";
+	SDL_zero(shaderCreateInfo);
+    shaderCreateInfo.code = (Uint8*) D3D11_FullscreenVert;
+    shaderCreateInfo.codeSize = sizeof(D3D11_FullscreenVert);
+    shaderCreateInfo.stage = REFRESH_SHADERSTAGE_VERTEX;
+    shaderCreateInfo.format = REFRESH_SHADERFORMAT_DXBC;
+    shaderCreateInfo.entryPointName = "main";
 
-    renderer->fullscreenVertexShader = D3D11_CreateShader(
+    fullscreenVertexShader = D3D11_CreateShader(
         (Refresh_Renderer*) renderer,
-        &shaderModuleCreateInfo
+        &shaderCreateInfo
     );
 
-    if (renderer->fullscreenVertexShader == NULL)
+    if (fullscreenVertexShader == NULL)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to compile fullscreen vertex shader!");
     }
 
     /* Blit from 2D pixel shader */
-    shaderModuleCreateInfo.code = (Uint8*) D3D11_BlitFrom2D;
-    shaderModuleCreateInfo.codeSize = sizeof(D3D11_BlitFrom2D);
-    shaderModuleCreateInfo.stage = REFRESH_SHADERSTAGE_FRAGMENT;
+    shaderCreateInfo.code = (Uint8*) D3D11_BlitFrom2D;
+    shaderCreateInfo.codeSize = sizeof(D3D11_BlitFrom2D);
+    shaderCreateInfo.stage = REFRESH_SHADERSTAGE_FRAGMENT;
+	shaderCreateInfo.samplerCount = 1;
 
-    renderer->blitFrom2DPixelShader = D3D11_CreateShader(
+    blitFrom2DPixelShader = D3D11_CreateShader(
         (Refresh_Renderer*) renderer,
-        &shaderModuleCreateInfo
+        &shaderCreateInfo
     );
 
-    if (renderer->blitFrom2DPixelShader == NULL)
+    if (blitFrom2DPixelShader == NULL)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to compile blit from 2D pixel shader!");
     }
 
     /* Blit from 2D array pixel shader */
-    shaderModuleCreateInfo.code = (Uint8 *) D3D11_BlitFrom2DArray;
-    shaderModuleCreateInfo.codeSize = sizeof(D3D11_BlitFrom2DArray);
-    shaderModuleCreateInfo.stage = REFRESH_SHADERSTAGE_FRAGMENT;
+    shaderCreateInfo.code = (Uint8 *) D3D11_BlitFrom2DArray;
+    shaderCreateInfo.codeSize = sizeof(D3D11_BlitFrom2DArray);
+    shaderCreateInfo.stage = REFRESH_SHADERSTAGE_FRAGMENT;
+	shaderCreateInfo.uniformBufferCount = 1;
 
-    renderer->blitFrom2DArrayPixelShader = D3D11_CreateShader(
+    blitFrom2DArrayPixelShader = D3D11_CreateShader(
         (Refresh_Renderer*) renderer,
-        &shaderModuleCreateInfo
+        &shaderCreateInfo
     );
 
-    if (renderer->blitFrom2DArrayPixelShader == NULL)
+    if (blitFrom2DArrayPixelShader == NULL)
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to compile blit from 2D array pixel shader!");
     }
 
     /* Blit from 2D pipeline */
-    SDL_memset(&colorAttachmentDesc, '\0', sizeof(Refresh_ColorAttachmentDescription));
-    colorAttachmentDesc.blendState.blendEnable = 0;
-    colorAttachmentDesc.blendState.colorWriteMask =
-        REFRESH_COLORCOMPONENT_R_BIT |
-        REFRESH_COLORCOMPONENT_G_BIT |
-        REFRESH_COLORCOMPONENT_B_BIT |
-        REFRESH_COLORCOMPONENT_A_BIT;
-
+	SDL_zero(blitPipelineCreateInfo);
+	SDL_zero(colorAttachmentDesc);
+	colorAttachmentDesc.blendState.colorWriteMask = 0xF;
     colorAttachmentDesc.format = REFRESH_TEXTUREFORMAT_R8G8B8A8; /* format doesn't matter in d3d11 */
 
     blitPipelineCreateInfo.attachmentInfo.colorAttachmentDescriptions = &colorAttachmentDesc;
     blitPipelineCreateInfo.attachmentInfo.colorAttachmentCount = 1;
     blitPipelineCreateInfo.attachmentInfo.depthStencilFormat = REFRESH_TEXTUREFORMAT_D16_UNORM; /* arbitrary */
     blitPipelineCreateInfo.attachmentInfo.hasDepthStencilAttachment = 0;
-
-    SDL_memset(&blitPipelineCreateInfo.depthStencilState, '\0', sizeof(Refresh_DepthStencilState));
-    blitPipelineCreateInfo.depthStencilState.depthTestEnable = 0;
-    blitPipelineCreateInfo.depthStencilState.depthWriteEnable = 0;
-    blitPipelineCreateInfo.depthStencilState.stencilTestEnable = 0;
 
     binding.binding = 0;
     binding.inputRate = REFRESH_VERTEXINPUTRATE_VERTEX;
@@ -6659,19 +6796,11 @@ static void D3D11_INTERNAL_InitBlitPipelines(
     blitPipelineCreateInfo.vertexInputState.vertexBindingCount = 1;
     blitPipelineCreateInfo.vertexInputState.vertexBindings = &binding;
 
-    blitPipelineCreateInfo.vertexShader = renderer->fullscreenVertexShader;
-    blitPipelineCreateInfo.fragmentShader = renderer->blitFrom2DPixelShader;
+    blitPipelineCreateInfo.vertexShader = fullscreenVertexShader;
+    blitPipelineCreateInfo.fragmentShader = blitFrom2DPixelShader;
 
     blitPipelineCreateInfo.multisampleState.multisampleCount = REFRESH_SAMPLECOUNT_1;
     blitPipelineCreateInfo.multisampleState.sampleMask = 0xFFFFFFFF;
-
-    blitPipelineCreateInfo.rasterizerState.cullMode = REFRESH_CULLMODE_NONE;
-    blitPipelineCreateInfo.rasterizerState.fillMode = REFRESH_FILLMODE_FILL;
-    blitPipelineCreateInfo.rasterizerState.frontFace = REFRESH_FRONTFACE_CLOCKWISE;
-	blitPipelineCreateInfo.rasterizerState.depthBiasEnable = 0;
-	blitPipelineCreateInfo.rasterizerState.depthBiasClamp = 0.0f;
-	blitPipelineCreateInfo.rasterizerState.depthBiasConstantFactor = 0.0f;
-	blitPipelineCreateInfo.rasterizerState.depthBiasSlopeFactor = 0.0f;
 
     blitPipelineCreateInfo.primitiveType = REFRESH_PRIMITIVETYPE_TRIANGLELIST;
 
@@ -6679,16 +6808,6 @@ static void D3D11_INTERNAL_InitBlitPipelines(
     blitPipelineCreateInfo.blendConstants[1] = 1.0f;
     blitPipelineCreateInfo.blendConstants[2] = 1.0f;
     blitPipelineCreateInfo.blendConstants[3] = 1.0f;
-
-    blitPipelineCreateInfo.vertexResourceInfo.samplerCount = 0;
-    blitPipelineCreateInfo.vertexResourceInfo.storageTextureCount = 0;
-    blitPipelineCreateInfo.vertexResourceInfo.storageBufferCount = 0;
-    blitPipelineCreateInfo.vertexResourceInfo.uniformBufferCount = 0;
-
-    blitPipelineCreateInfo.fragmentResourceInfo.samplerCount = 1;
-    blitPipelineCreateInfo.fragmentResourceInfo.storageTextureCount = 0;
-    blitPipelineCreateInfo.fragmentResourceInfo.storageBufferCount = 0;
-    blitPipelineCreateInfo.fragmentResourceInfo.uniformBufferCount = 0;
 
     renderer->blitFrom2DPipeline = D3D11_CreateGraphicsPipeline(
         (Refresh_Renderer*) renderer,
@@ -6701,9 +6820,7 @@ static void D3D11_INTERNAL_InitBlitPipelines(
     }
 
     /* Blit from 2D array pipeline */
-    blitPipelineCreateInfo.fragmentShader = renderer->blitFrom2DArrayPixelShader;
-
-    blitPipelineCreateInfo.fragmentResourceInfo.uniformBufferCount = 1;
+    blitPipelineCreateInfo.fragmentShader = blitFrom2DArrayPixelShader;
 
     renderer->blitFrom2DArrayPipeline = D3D11_CreateGraphicsPipeline(
         (Refresh_Renderer*) renderer,
@@ -6747,6 +6864,10 @@ static void D3D11_INTERNAL_InitBlitPipelines(
     {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create blit linear sampler!");
     }
+
+	D3D11_ReleaseShader((Refresh_Renderer*) renderer, fullscreenVertexShader);
+	D3D11_ReleaseShader((Refresh_Renderer*) renderer, blitFrom2DPixelShader);
+	D3D11_ReleaseShader((Refresh_Renderer*) renderer, blitFrom2DArrayPixelShader);
 }
 
 static void D3D11_INTERNAL_DestroyBlitPipelines(
@@ -6759,10 +6880,6 @@ static void D3D11_INTERNAL_DestroyBlitPipelines(
 
 	D3D11_ReleaseGraphicsPipeline(driverData, renderer->blitFrom2DPipeline);
 	D3D11_ReleaseGraphicsPipeline(driverData, renderer->blitFrom2DArrayPipeline);
-
-	D3D11_ReleaseShader(driverData, renderer->fullscreenVertexShader);
-	D3D11_ReleaseShader(driverData, renderer->blitFrom2DPixelShader);
-	D3D11_ReleaseShader(driverData, renderer->blitFrom2DArrayPixelShader);
 }
 
 static Refresh_Device* D3D11_CreateDevice(SDL_bool debugMode)
@@ -6781,6 +6898,21 @@ static Refresh_Device* D3D11_CreateDevice(SDL_bool debugMode)
 
 	/* Allocate and zero out the renderer */
 	renderer = (D3D11Renderer*) SDL_calloc(1, sizeof(D3D11Renderer));
+
+	/* Load the D3DCompiler library */
+	renderer->d3dcompiler_dll = SDL_LoadObject(D3DCOMPILER_DLL);
+	if (renderer->d3dcompiler_dll == NULL)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not find " D3DCOMPILER_DLL);
+		return NULL;
+	}
+
+	renderer->D3DCompile_func = (PFN_D3DCOMPILE)SDL_LoadFunction(renderer->d3dcompiler_dll, D3DCOMPILE_FUNC);
+	if (renderer->D3DCompile_func == NULL)
+	{
+		SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Could not load function: " D3DCOMPILE_FUNC);
+		return NULL;
+	}
 
 	/* Load the DXGI library */
 	renderer->dxgi_dll = SDL_LoadObject(DXGI_DLL);
