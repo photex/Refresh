@@ -5438,7 +5438,7 @@ static void VULKAN_INTERNAL_BindGraphicsDescriptorSets(
 
             imageInfos[imageInfoCount].sampler = VK_NULL_HANDLE;
             imageInfos[imageInfoCount].imageView = commandBuffer->vertexStorageTextureSlices[i]->view;
-            imageInfos[imageInfoCount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfos[imageInfoCount].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
             currentWriteDescriptorSet->pImageInfo = &imageInfos[imageInfoCount];
 
@@ -5624,7 +5624,7 @@ static void VULKAN_INTERNAL_BindGraphicsDescriptorSets(
 
             imageInfos[imageInfoCount].sampler = VK_NULL_HANDLE;
             imageInfos[imageInfoCount].imageView = commandBuffer->fragmentStorageTextureSlices[i]->view;
-            imageInfos[imageInfoCount].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfos[imageInfoCount].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
             currentWriteDescriptorSet->pImageInfo = &imageInfos[imageInfoCount];
 
