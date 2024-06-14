@@ -2140,7 +2140,7 @@ static D3D11Texture* D3D11_INTERNAL_CreateTexture(
         (textureCreateInfo->usageFlags & REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_READ_BIT);
     needSubresourceUAV =
         (textureCreateInfo->usageFlags & REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE_BIT);
-	isMultisample = textureCreateInfo->sampleCount > 1;
+	isMultisample = textureCreateInfo->sampleCount > REFRESH_SAMPLECOUNT_1;
 
 	format = RefreshToD3D11_TextureFormat[textureCreateInfo->format];
 	if (isDepthStencil)
@@ -2516,6 +2516,34 @@ static D3D11Texture* D3D11_INTERNAL_CreateTexture(
 	return d3d11Texture;
 }
 
+static Refresh_SampleCount D3D11_GetBestSampleCount(
+    Refresh_Renderer *driverData,
+    Refresh_TextureFormat format,
+    Refresh_SampleCount desiredSampleCount
+) {
+    D3D11Renderer *renderer = (D3D11Renderer*) driverData;
+    Refresh_SampleCount maxSupported = REFRESH_SAMPLECOUNT_8;
+    Uint32 levels;
+    HRESULT res;
+
+    while (maxSupported > REFRESH_SAMPLECOUNT_1)
+    {
+        res = ID3D11Device_CheckMultisampleQualityLevels(
+            renderer->device,
+            RefreshToD3D11_TextureFormat[format],
+            RefreshToD3D11_SampleCount[desiredSampleCount],
+            &levels
+        );
+        if (SUCCEEDED(res) && levels > 0)
+        {
+            break;
+        }
+        maxSupported -= 1;
+    }
+
+    return (Refresh_SampleCount) SDL_min(maxSupported, desiredSampleCount);
+}
+
 static Refresh_Texture* D3D11_CreateTexture(
 	Refresh_Renderer *driverData,
 	Refresh_TextureCreateInfo *textureCreateInfo
@@ -2523,10 +2551,17 @@ static Refresh_Texture* D3D11_CreateTexture(
 	D3D11Renderer *renderer = (D3D11Renderer*) driverData;
 	D3D11TextureContainer *container;
 	D3D11Texture *texture;
+	Refresh_TextureCreateInfo newTextureCreateInfo = *textureCreateInfo;
+
+	newTextureCreateInfo.sampleCount = D3D11_GetBestSampleCount(
+		driverData,
+		textureCreateInfo->format,
+		textureCreateInfo->sampleCount
+	);
 
 	texture = D3D11_INTERNAL_CreateTexture(
 		renderer,
-		textureCreateInfo
+		&newTextureCreateInfo
 	);
 
 	if (texture == NULL)
@@ -6530,34 +6565,6 @@ static SDL_bool D3D11_IsTextureFormatSupported(
     }
 
     return SDL_TRUE;
-}
-
-static Refresh_SampleCount D3D11_GetBestSampleCount(
-    Refresh_Renderer *driverData,
-    Refresh_TextureFormat format,
-    Refresh_SampleCount desiredSampleCount
-) {
-    D3D11Renderer *renderer = (D3D11Renderer*) driverData;
-    Refresh_SampleCount maxSupported = REFRESH_SAMPLECOUNT_8;
-    Uint32 levels;
-    HRESULT res;
-
-    while (maxSupported > REFRESH_SAMPLECOUNT_1)
-    {
-        res = ID3D11Device_CheckMultisampleQualityLevels(
-            renderer->device,
-            RefreshToD3D11_TextureFormat[format],
-            RefreshToD3D11_SampleCount[desiredSampleCount],
-            &levels
-        );
-        if (SUCCEEDED(res) && levels > 0)
-        {
-            break;
-        }
-        maxSupported -= 1;
-    }
-
-    return (Refresh_SampleCount) SDL_min(maxSupported, desiredSampleCount);
 }
 
 /* Device Creation */

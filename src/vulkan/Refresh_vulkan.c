@@ -7448,6 +7448,37 @@ static Refresh_Shader* VULKAN_CreateShader(
     return (Refresh_Shader*) vulkanShader;
 }
 
+static Refresh_SampleCount VULKAN_GetBestSampleCount(
+    Refresh_Renderer *driverData,
+    Refresh_TextureFormat format,
+    Refresh_SampleCount desiredSampleCount
+) {
+    VulkanRenderer *renderer = (VulkanRenderer*) driverData;
+    Uint32 maxSupported;
+    VkSampleCountFlagBits bits = IsDepthFormat(format) ?
+        renderer->physicalDeviceProperties.properties.limits.framebufferDepthSampleCounts :
+        renderer->physicalDeviceProperties.properties.limits.framebufferColorSampleCounts;
+
+    if (bits & VK_SAMPLE_COUNT_8_BIT)
+    {
+        maxSupported = REFRESH_SAMPLECOUNT_8;
+    }
+    else if (bits & VK_SAMPLE_COUNT_4_BIT)
+    {
+        maxSupported = REFRESH_SAMPLECOUNT_4;
+    }
+    else if (bits & VK_SAMPLE_COUNT_2_BIT)
+    {
+        maxSupported = REFRESH_SAMPLECOUNT_2;
+    }
+    else
+    {
+        maxSupported = REFRESH_SAMPLECOUNT_1;
+    }
+
+    return (Refresh_SampleCount) SDL_min(maxSupported, desiredSampleCount);
+}
+
 static Refresh_Texture* VULKAN_CreateTexture(
     Refresh_Renderer *driverData,
     Refresh_TextureCreateInfo *textureCreateInfo
@@ -7459,6 +7490,11 @@ static Refresh_Texture* VULKAN_CreateTexture(
     VulkanTextureContainer *container;
     VulkanTextureHandle *textureHandle;
     VkComponentMapping swizzle = IDENTITY_SWIZZLE;
+    Refresh_SampleCount actualSampleCount = VULKAN_GetBestSampleCount(
+        driverData,
+        textureCreateInfo->format,
+        textureCreateInfo->sampleCount
+    );
 
     format = SDLToVK_SurfaceFormat[textureCreateInfo->format];
 
@@ -7493,7 +7529,7 @@ static Refresh_Texture* VULKAN_CreateTexture(
         textureCreateInfo->isCube,
         textureCreateInfo->layerCount,
         textureCreateInfo->levelCount,
-        SDLToVK_SampleCount[textureCreateInfo->sampleCount],
+        SDLToVK_SampleCount[actualSampleCount],
         format,
         swizzle,
         imageAspectFlags,
@@ -11923,37 +11959,6 @@ static SDL_bool VULKAN_IsTextureFormatSupported(
     );
 
     return vulkanResult == VK_SUCCESS;
-}
-
-static Refresh_SampleCount VULKAN_GetBestSampleCount(
-    Refresh_Renderer *driverData,
-    Refresh_TextureFormat format,
-    Refresh_SampleCount desiredSampleCount
-) {
-    VulkanRenderer *renderer = (VulkanRenderer*) driverData;
-    Uint32 maxSupported;
-    VkSampleCountFlagBits bits = IsDepthFormat(format) ?
-        renderer->physicalDeviceProperties.properties.limits.framebufferDepthSampleCounts :
-        renderer->physicalDeviceProperties.properties.limits.framebufferColorSampleCounts;
-
-    if (bits & VK_SAMPLE_COUNT_8_BIT)
-    {
-        maxSupported = REFRESH_SAMPLECOUNT_8;
-    }
-    else if (bits & VK_SAMPLE_COUNT_4_BIT)
-    {
-        maxSupported = REFRESH_SAMPLECOUNT_4;
-    }
-    else if (bits & VK_SAMPLE_COUNT_2_BIT)
-    {
-        maxSupported = REFRESH_SAMPLECOUNT_2;
-    }
-    else
-    {
-        maxSupported = REFRESH_SAMPLECOUNT_1;
-    }
-
-    return (Refresh_SampleCount) SDL_min(maxSupported, desiredSampleCount);
 }
 
 /* Device instantiation */

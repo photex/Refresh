@@ -905,6 +905,9 @@ REFRESHAPI Refresh_Shader* Refresh_CreateShader(
  * Note that certain combinations of usage flags are invalid.
  * For example, a texture cannot have both the SAMPLER and GRAPHICS_STORAGE_READ flags.
  *
+ * If you request a sample count higher than the hardware supports,
+ * the implementation will automatically fall back to the highest available sample count.
+ *
  * \param device a GPU Context
  * \param textureCreateInfo a struct describing the state of the texture to create
  * \returns a texture object on success, or NULL on failure
