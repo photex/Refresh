@@ -25,8 +25,7 @@
  */
 #include "Refresh_driver.h"
 
-extern void* Refresh_CompileFromSPIRV(
-	Refresh_Device *device,
+extern void *Refresh_CompileFromSPIRV(
+    Refresh_Device *device,
     void *createInfo,
-	SDL_bool isCompute
-);
+    SDL_bool isCompute);

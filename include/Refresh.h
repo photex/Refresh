@@ -31,7 +31,7 @@
 #include <SDL_stdinc.h>
 
 #ifdef _WIN32
-#define REFRESHAPI __declspec(dllexport)
+#define REFRESHAPI  __declspec(dllexport)
 #define REFRESHCALL __cdecl
 #else
 #define REFRESHAPI
@@ -69,90 +69,90 @@ typedef struct Refresh_Fence Refresh_Fence;
 
 typedef enum Refresh_PrimitiveType
 {
-	REFRESH_PRIMITIVETYPE_POINTLIST,
-	REFRESH_PRIMITIVETYPE_LINELIST,
-	REFRESH_PRIMITIVETYPE_LINESTRIP,
-	REFRESH_PRIMITIVETYPE_TRIANGLELIST,
-	REFRESH_PRIMITIVETYPE_TRIANGLESTRIP
+    REFRESH_PRIMITIVETYPE_POINTLIST,
+    REFRESH_PRIMITIVETYPE_LINELIST,
+    REFRESH_PRIMITIVETYPE_LINESTRIP,
+    REFRESH_PRIMITIVETYPE_TRIANGLELIST,
+    REFRESH_PRIMITIVETYPE_TRIANGLESTRIP
 } Refresh_PrimitiveType;
 
 typedef enum Refresh_LoadOp
 {
-	REFRESH_LOADOP_LOAD,
-	REFRESH_LOADOP_CLEAR,
-	REFRESH_LOADOP_DONT_CARE
+    REFRESH_LOADOP_LOAD,
+    REFRESH_LOADOP_CLEAR,
+    REFRESH_LOADOP_DONT_CARE
 } Refresh_LoadOp;
 
 typedef enum Refresh_StoreOp
 {
-	REFRESH_STOREOP_STORE,
-	REFRESH_STOREOP_DONT_CARE
+    REFRESH_STOREOP_STORE,
+    REFRESH_STOREOP_DONT_CARE
 } Refresh_StoreOp;
 
 typedef enum Refresh_IndexElementSize
 {
-	REFRESH_INDEXELEMENTSIZE_16BIT,
-	REFRESH_INDEXELEMENTSIZE_32BIT
+    REFRESH_INDEXELEMENTSIZE_16BIT,
+    REFRESH_INDEXELEMENTSIZE_32BIT
 } Refresh_IndexElementSize;
 
 typedef enum Refresh_TextureFormat
 {
-	/* Unsigned Normalized Float Color Formats */
-	REFRESH_TEXTUREFORMAT_R8G8B8A8,
-	REFRESH_TEXTUREFORMAT_B8G8R8A8,
-	REFRESH_TEXTUREFORMAT_R5G6B5,
-	REFRESH_TEXTUREFORMAT_A1R5G5B5,
-	REFRESH_TEXTUREFORMAT_B4G4R4A4,
-	REFRESH_TEXTUREFORMAT_A2R10G10B10,
+    /* Unsigned Normalized Float Color Formats */
+    REFRESH_TEXTUREFORMAT_R8G8B8A8,
+    REFRESH_TEXTUREFORMAT_B8G8R8A8,
+    REFRESH_TEXTUREFORMAT_R5G6B5,
+    REFRESH_TEXTUREFORMAT_A1R5G5B5,
+    REFRESH_TEXTUREFORMAT_B4G4R4A4,
+    REFRESH_TEXTUREFORMAT_A2R10G10B10,
     REFRESH_TEXTUREFORMAT_A2B10G10R10,
-	REFRESH_TEXTUREFORMAT_R16G16,
-	REFRESH_TEXTUREFORMAT_R16G16B16A16,
-	REFRESH_TEXTUREFORMAT_R8,
-	REFRESH_TEXTUREFORMAT_A8,
-	/* Compressed Unsigned Normalized Float Color Formats */
-	REFRESH_TEXTUREFORMAT_BC1,
-	REFRESH_TEXTUREFORMAT_BC2,
-	REFRESH_TEXTUREFORMAT_BC3,
-	REFRESH_TEXTUREFORMAT_BC7,
-	/* Signed Normalized Float Color Formats  */
-	REFRESH_TEXTUREFORMAT_R8G8_SNORM,
-	REFRESH_TEXTUREFORMAT_R8G8B8A8_SNORM,
-	/* Signed Float Color Formats */
-	REFRESH_TEXTUREFORMAT_R16_SFLOAT,
-	REFRESH_TEXTUREFORMAT_R16G16_SFLOAT,
-	REFRESH_TEXTUREFORMAT_R16G16B16A16_SFLOAT,
-	REFRESH_TEXTUREFORMAT_R32_SFLOAT,
-	REFRESH_TEXTUREFORMAT_R32G32_SFLOAT,
-	REFRESH_TEXTUREFORMAT_R32G32B32A32_SFLOAT,
-	/* Unsigned Integer Color Formats */
-	REFRESH_TEXTUREFORMAT_R8_UINT,
-	REFRESH_TEXTUREFORMAT_R8G8_UINT,
-	REFRESH_TEXTUREFORMAT_R8G8B8A8_UINT,
-	REFRESH_TEXTUREFORMAT_R16_UINT,
-	REFRESH_TEXTUREFORMAT_R16G16_UINT,
-	REFRESH_TEXTUREFORMAT_R16G16B16A16_UINT,
-	/* SRGB Color Formats */
-	REFRESH_TEXTUREFORMAT_R8G8B8A8_SRGB,
-	REFRESH_TEXTUREFORMAT_B8G8R8A8_SRGB,
-	/* Compressed SRGB Color Formats */
-	REFRESH_TEXTUREFORMAT_BC3_SRGB,
-	REFRESH_TEXTUREFORMAT_BC7_SRGB,
-	/* Depth Formats */
-	REFRESH_TEXTUREFORMAT_D16_UNORM,
-	REFRESH_TEXTUREFORMAT_D24_UNORM,
-	REFRESH_TEXTUREFORMAT_D32_SFLOAT,
-	REFRESH_TEXTUREFORMAT_D24_UNORM_S8_UINT,
-	REFRESH_TEXTUREFORMAT_D32_SFLOAT_S8_UINT
+    REFRESH_TEXTUREFORMAT_R16G16,
+    REFRESH_TEXTUREFORMAT_R16G16B16A16,
+    REFRESH_TEXTUREFORMAT_R8,
+    REFRESH_TEXTUREFORMAT_A8,
+    /* Compressed Unsigned Normalized Float Color Formats */
+    REFRESH_TEXTUREFORMAT_BC1,
+    REFRESH_TEXTUREFORMAT_BC2,
+    REFRESH_TEXTUREFORMAT_BC3,
+    REFRESH_TEXTUREFORMAT_BC7,
+    /* Signed Normalized Float Color Formats  */
+    REFRESH_TEXTUREFORMAT_R8G8_SNORM,
+    REFRESH_TEXTUREFORMAT_R8G8B8A8_SNORM,
+    /* Signed Float Color Formats */
+    REFRESH_TEXTUREFORMAT_R16_SFLOAT,
+    REFRESH_TEXTUREFORMAT_R16G16_SFLOAT,
+    REFRESH_TEXTUREFORMAT_R16G16B16A16_SFLOAT,
+    REFRESH_TEXTUREFORMAT_R32_SFLOAT,
+    REFRESH_TEXTUREFORMAT_R32G32_SFLOAT,
+    REFRESH_TEXTUREFORMAT_R32G32B32A32_SFLOAT,
+    /* Unsigned Integer Color Formats */
+    REFRESH_TEXTUREFORMAT_R8_UINT,
+    REFRESH_TEXTUREFORMAT_R8G8_UINT,
+    REFRESH_TEXTUREFORMAT_R8G8B8A8_UINT,
+    REFRESH_TEXTUREFORMAT_R16_UINT,
+    REFRESH_TEXTUREFORMAT_R16G16_UINT,
+    REFRESH_TEXTUREFORMAT_R16G16B16A16_UINT,
+    /* SRGB Color Formats */
+    REFRESH_TEXTUREFORMAT_R8G8B8A8_SRGB,
+    REFRESH_TEXTUREFORMAT_B8G8R8A8_SRGB,
+    /* Compressed SRGB Color Formats */
+    REFRESH_TEXTUREFORMAT_BC3_SRGB,
+    REFRESH_TEXTUREFORMAT_BC7_SRGB,
+    /* Depth Formats */
+    REFRESH_TEXTUREFORMAT_D16_UNORM,
+    REFRESH_TEXTUREFORMAT_D24_UNORM,
+    REFRESH_TEXTUREFORMAT_D32_SFLOAT,
+    REFRESH_TEXTUREFORMAT_D24_UNORM_S8_UINT,
+    REFRESH_TEXTUREFORMAT_D32_SFLOAT_S8_UINT
 } Refresh_TextureFormat;
 
 typedef enum Refresh_TextureUsageFlagBits
 {
-	REFRESH_TEXTUREUSAGE_SAMPLER_BIT                = 0x00000001,
-	REFRESH_TEXTUREUSAGE_COLOR_TARGET_BIT           = 0x00000002,
-	REFRESH_TEXTUREUSAGE_DEPTH_STENCIL_TARGET_BIT   = 0x00000004,
-	REFRESH_TEXTUREUSAGE_GRAPHICS_STORAGE_READ_BIT  = 0x00000008,
-	REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_READ_BIT   = 0x00000020,
-	REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE_BIT  = 0x00000040
+    REFRESH_TEXTUREUSAGE_SAMPLER_BIT = 0x00000001,
+    REFRESH_TEXTUREUSAGE_COLOR_TARGET_BIT = 0x00000002,
+    REFRESH_TEXTUREUSAGE_DEPTH_STENCIL_TARGET_BIT = 0x00000004,
+    REFRESH_TEXTUREUSAGE_GRAPHICS_STORAGE_READ_BIT = 0x00000008,
+    REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_READ_BIT = 0x00000020,
+    REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE_BIT = 0x00000040
 } Refresh_TextureUsageFlagBits;
 
 typedef Uint32 Refresh_TextureUsageFlags;
@@ -166,37 +166,37 @@ typedef enum Refresh_TextureType
 
 typedef enum Refresh_SampleCount
 {
-	REFRESH_SAMPLECOUNT_1,
-	REFRESH_SAMPLECOUNT_2,
-	REFRESH_SAMPLECOUNT_4,
-	REFRESH_SAMPLECOUNT_8
+    REFRESH_SAMPLECOUNT_1,
+    REFRESH_SAMPLECOUNT_2,
+    REFRESH_SAMPLECOUNT_4,
+    REFRESH_SAMPLECOUNT_8
 } Refresh_SampleCount;
 
 typedef enum Refresh_CubeMapFace
 {
-	REFRESH_CUBEMAPFACE_POSITIVEX,
-	REFRESH_CUBEMAPFACE_NEGATIVEX,
-	REFRESH_CUBEMAPFACE_POSITIVEY,
-	REFRESH_CUBEMAPFACE_NEGATIVEY,
-	REFRESH_CUBEMAPFACE_POSITIVEZ,
-	REFRESH_CUBEMAPFACE_NEGATIVEZ
+    REFRESH_CUBEMAPFACE_POSITIVEX,
+    REFRESH_CUBEMAPFACE_NEGATIVEX,
+    REFRESH_CUBEMAPFACE_POSITIVEY,
+    REFRESH_CUBEMAPFACE_NEGATIVEY,
+    REFRESH_CUBEMAPFACE_POSITIVEZ,
+    REFRESH_CUBEMAPFACE_NEGATIVEZ
 } Refresh_CubeMapFace;
 
 typedef enum Refresh_BufferUsageFlagBits
 {
-	REFRESH_BUFFERUSAGE_VERTEX_BIT 	 = 0x00000001,
-	REFRESH_BUFFERUSAGE_INDEX_BIT  	 = 0x00000002,
-	REFRESH_BUFFERUSAGE_INDIRECT_BIT = 0x00000004,
-	REFRESH_BUFFERUSAGE_GRAPHICS_STORAGE_READ_BIT  = 0x00000008,
-	REFRESH_BUFFERUSAGE_COMPUTE_STORAGE_READ_BIT   = 0x00000020,
-	REFRESH_BUFFERUSAGE_COMPUTE_STORAGE_WRITE_BIT  = 0x00000040
+    REFRESH_BUFFERUSAGE_VERTEX_BIT = 0x00000001,
+    REFRESH_BUFFERUSAGE_INDEX_BIT = 0x00000002,
+    REFRESH_BUFFERUSAGE_INDIRECT_BIT = 0x00000004,
+    REFRESH_BUFFERUSAGE_GRAPHICS_STORAGE_READ_BIT = 0x00000008,
+    REFRESH_BUFFERUSAGE_COMPUTE_STORAGE_READ_BIT = 0x00000020,
+    REFRESH_BUFFERUSAGE_COMPUTE_STORAGE_WRITE_BIT = 0x00000040
 } Refresh_BufferUsageFlagBits;
 
 typedef Uint32 Refresh_BufferUsageFlags;
 
 typedef enum Refresh_TransferBufferMapFlagBits
 {
-    REFRESH_TRANSFER_MAP_READ  = 0x00000001,
+    REFRESH_TRANSFER_MAP_READ = 0x00000001,
     REFRESH_TRANSFER_MAP_WRITE = 0x00000002
 } Refresh_TransferBufferMapFlagBits;
 
@@ -204,159 +204,159 @@ typedef Uint32 Refresh_TransferBufferMapFlags;
 
 typedef enum Refresh_ShaderStage
 {
-	REFRESH_SHADERSTAGE_VERTEX,
-	REFRESH_SHADERSTAGE_FRAGMENT
+    REFRESH_SHADERSTAGE_VERTEX,
+    REFRESH_SHADERSTAGE_FRAGMENT
 } Refresh_ShaderStage;
 
 typedef enum Refresh_ShaderFormat
 {
-	REFRESH_SHADERFORMAT_INVALID,
-	REFRESH_SHADERFORMAT_SPIRV,	/* Vulkan */
-	REFRESH_SHADERFORMAT_HLSL,	/* D3D11, D3D12 */
-	REFRESH_SHADERFORMAT_DXBC,	/* D3D11, D3D12 */
-	REFRESH_SHADERFORMAT_DXIL,	/* D3D12 */
-	REFRESH_SHADERFORMAT_MSL,	/* Metal */
-	REFRESH_SHADERFORMAT_METALLIB,	/* Metal */
-	REFRESH_SHADERFORMAT_SECRET	/* NDA'd platforms */
+    REFRESH_SHADERFORMAT_INVALID,
+    REFRESH_SHADERFORMAT_SPIRV,    /* Vulkan */
+    REFRESH_SHADERFORMAT_HLSL,     /* D3D11, D3D12 */
+    REFRESH_SHADERFORMAT_DXBC,     /* D3D11, D3D12 */
+    REFRESH_SHADERFORMAT_DXIL,     /* D3D12 */
+    REFRESH_SHADERFORMAT_MSL,      /* Metal */
+    REFRESH_SHADERFORMAT_METALLIB, /* Metal */
+    REFRESH_SHADERFORMAT_SECRET    /* NDA'd platforms */
 } Refresh_ShaderFormat;
 
 typedef enum Refresh_VertexElementFormat
 {
-	REFRESH_VERTEXELEMENTFORMAT_UINT,
-	REFRESH_VERTEXELEMENTFORMAT_FLOAT,
-	REFRESH_VERTEXELEMENTFORMAT_VECTOR2,
-	REFRESH_VERTEXELEMENTFORMAT_VECTOR3,
-	REFRESH_VERTEXELEMENTFORMAT_VECTOR4,
-	REFRESH_VERTEXELEMENTFORMAT_COLOR,
-	REFRESH_VERTEXELEMENTFORMAT_BYTE4,
-	REFRESH_VERTEXELEMENTFORMAT_SHORT2,
-	REFRESH_VERTEXELEMENTFORMAT_SHORT4,
-	REFRESH_VERTEXELEMENTFORMAT_NORMALIZEDSHORT2,
-	REFRESH_VERTEXELEMENTFORMAT_NORMALIZEDSHORT4,
-	REFRESH_VERTEXELEMENTFORMAT_HALFVECTOR2,
-	REFRESH_VERTEXELEMENTFORMAT_HALFVECTOR4
+    REFRESH_VERTEXELEMENTFORMAT_UINT,
+    REFRESH_VERTEXELEMENTFORMAT_FLOAT,
+    REFRESH_VERTEXELEMENTFORMAT_VECTOR2,
+    REFRESH_VERTEXELEMENTFORMAT_VECTOR3,
+    REFRESH_VERTEXELEMENTFORMAT_VECTOR4,
+    REFRESH_VERTEXELEMENTFORMAT_COLOR,
+    REFRESH_VERTEXELEMENTFORMAT_BYTE4,
+    REFRESH_VERTEXELEMENTFORMAT_SHORT2,
+    REFRESH_VERTEXELEMENTFORMAT_SHORT4,
+    REFRESH_VERTEXELEMENTFORMAT_NORMALIZEDSHORT2,
+    REFRESH_VERTEXELEMENTFORMAT_NORMALIZEDSHORT4,
+    REFRESH_VERTEXELEMENTFORMAT_HALFVECTOR2,
+    REFRESH_VERTEXELEMENTFORMAT_HALFVECTOR4
 } Refresh_VertexElementFormat;
 
 typedef enum Refresh_VertexInputRate
 {
-	REFRESH_VERTEXINPUTRATE_VERTEX = 0,
-	REFRESH_VERTEXINPUTRATE_INSTANCE = 1
+    REFRESH_VERTEXINPUTRATE_VERTEX = 0,
+    REFRESH_VERTEXINPUTRATE_INSTANCE = 1
 } Refresh_VertexInputRate;
 
 typedef enum Refresh_FillMode
 {
-	REFRESH_FILLMODE_FILL,
-	REFRESH_FILLMODE_LINE
+    REFRESH_FILLMODE_FILL,
+    REFRESH_FILLMODE_LINE
 } Refresh_FillMode;
 
 typedef enum Refresh_CullMode
 {
-	REFRESH_CULLMODE_NONE,
-	REFRESH_CULLMODE_FRONT,
-	REFRESH_CULLMODE_BACK
+    REFRESH_CULLMODE_NONE,
+    REFRESH_CULLMODE_FRONT,
+    REFRESH_CULLMODE_BACK
 } Refresh_CullMode;
 
 typedef enum Refresh_FrontFace
 {
-	REFRESH_FRONTFACE_COUNTER_CLOCKWISE,
-	REFRESH_FRONTFACE_CLOCKWISE
+    REFRESH_FRONTFACE_COUNTER_CLOCKWISE,
+    REFRESH_FRONTFACE_CLOCKWISE
 } Refresh_FrontFace;
 
 typedef enum Refresh_CompareOp
 {
-	REFRESH_COMPAREOP_NEVER,
-	REFRESH_COMPAREOP_LESS,
-	REFRESH_COMPAREOP_EQUAL,
-	REFRESH_COMPAREOP_LESS_OR_EQUAL,
-	REFRESH_COMPAREOP_GREATER,
-	REFRESH_COMPAREOP_NOT_EQUAL,
-	REFRESH_COMPAREOP_GREATER_OR_EQUAL,
-	REFRESH_COMPAREOP_ALWAYS
+    REFRESH_COMPAREOP_NEVER,
+    REFRESH_COMPAREOP_LESS,
+    REFRESH_COMPAREOP_EQUAL,
+    REFRESH_COMPAREOP_LESS_OR_EQUAL,
+    REFRESH_COMPAREOP_GREATER,
+    REFRESH_COMPAREOP_NOT_EQUAL,
+    REFRESH_COMPAREOP_GREATER_OR_EQUAL,
+    REFRESH_COMPAREOP_ALWAYS
 } Refresh_CompareOp;
 
 typedef enum Refresh_StencilOp
 {
-	REFRESH_STENCILOP_KEEP,
-	REFRESH_STENCILOP_ZERO,
-	REFRESH_STENCILOP_REPLACE,
-	REFRESH_STENCILOP_INCREMENT_AND_CLAMP,
-	REFRESH_STENCILOP_DECREMENT_AND_CLAMP,
-	REFRESH_STENCILOP_INVERT,
-	REFRESH_STENCILOP_INCREMENT_AND_WRAP,
-	REFRESH_STENCILOP_DECREMENT_AND_WRAP
+    REFRESH_STENCILOP_KEEP,
+    REFRESH_STENCILOP_ZERO,
+    REFRESH_STENCILOP_REPLACE,
+    REFRESH_STENCILOP_INCREMENT_AND_CLAMP,
+    REFRESH_STENCILOP_DECREMENT_AND_CLAMP,
+    REFRESH_STENCILOP_INVERT,
+    REFRESH_STENCILOP_INCREMENT_AND_WRAP,
+    REFRESH_STENCILOP_DECREMENT_AND_WRAP
 } Refresh_StencilOp;
 
 typedef enum Refresh_BlendOp
 {
-	REFRESH_BLENDOP_ADD,
-	REFRESH_BLENDOP_SUBTRACT,
-	REFRESH_BLENDOP_REVERSE_SUBTRACT,
-	REFRESH_BLENDOP_MIN,
-	REFRESH_BLENDOP_MAX
+    REFRESH_BLENDOP_ADD,
+    REFRESH_BLENDOP_SUBTRACT,
+    REFRESH_BLENDOP_REVERSE_SUBTRACT,
+    REFRESH_BLENDOP_MIN,
+    REFRESH_BLENDOP_MAX
 } Refresh_BlendOp;
 
 typedef enum Refresh_BlendFactor
 {
-	REFRESH_BLENDFACTOR_ZERO,
-	REFRESH_BLENDFACTOR_ONE,
-	REFRESH_BLENDFACTOR_SRC_COLOR,
-	REFRESH_BLENDFACTOR_ONE_MINUS_SRC_COLOR,
-	REFRESH_BLENDFACTOR_DST_COLOR,
-	REFRESH_BLENDFACTOR_ONE_MINUS_DST_COLOR,
-	REFRESH_BLENDFACTOR_SRC_ALPHA,
-	REFRESH_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-	REFRESH_BLENDFACTOR_DST_ALPHA,
-	REFRESH_BLENDFACTOR_ONE_MINUS_DST_ALPHA,
-	REFRESH_BLENDFACTOR_CONSTANT_COLOR,
-	REFRESH_BLENDFACTOR_ONE_MINUS_CONSTANT_COLOR,
-	REFRESH_BLENDFACTOR_SRC_ALPHA_SATURATE
+    REFRESH_BLENDFACTOR_ZERO,
+    REFRESH_BLENDFACTOR_ONE,
+    REFRESH_BLENDFACTOR_SRC_COLOR,
+    REFRESH_BLENDFACTOR_ONE_MINUS_SRC_COLOR,
+    REFRESH_BLENDFACTOR_DST_COLOR,
+    REFRESH_BLENDFACTOR_ONE_MINUS_DST_COLOR,
+    REFRESH_BLENDFACTOR_SRC_ALPHA,
+    REFRESH_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+    REFRESH_BLENDFACTOR_DST_ALPHA,
+    REFRESH_BLENDFACTOR_ONE_MINUS_DST_ALPHA,
+    REFRESH_BLENDFACTOR_CONSTANT_COLOR,
+    REFRESH_BLENDFACTOR_ONE_MINUS_CONSTANT_COLOR,
+    REFRESH_BLENDFACTOR_SRC_ALPHA_SATURATE
 } Refresh_BlendFactor;
 
 typedef enum Refresh_ColorComponentFlagBits
 {
-	REFRESH_COLORCOMPONENT_R_BIT = 0x00000001,
-	REFRESH_COLORCOMPONENT_G_BIT = 0x00000002,
-	REFRESH_COLORCOMPONENT_B_BIT = 0x00000004,
-	REFRESH_COLORCOMPONENT_A_BIT = 0x00000008
+    REFRESH_COLORCOMPONENT_R_BIT = 0x00000001,
+    REFRESH_COLORCOMPONENT_G_BIT = 0x00000002,
+    REFRESH_COLORCOMPONENT_B_BIT = 0x00000004,
+    REFRESH_COLORCOMPONENT_A_BIT = 0x00000008
 } Refresh_ColorComponentFlagBits;
 
 typedef Uint32 Refresh_ColorComponentFlags;
 
 typedef enum Refresh_Filter
 {
-	REFRESH_FILTER_NEAREST,
-	REFRESH_FILTER_LINEAR
+    REFRESH_FILTER_NEAREST,
+    REFRESH_FILTER_LINEAR
 } Refresh_Filter;
 
 typedef enum Refresh_SamplerMipmapMode
 {
-	REFRESH_SAMPLERMIPMAPMODE_NEAREST,
-	REFRESH_SAMPLERMIPMAPMODE_LINEAR
+    REFRESH_SAMPLERMIPMAPMODE_NEAREST,
+    REFRESH_SAMPLERMIPMAPMODE_LINEAR
 } Refresh_SamplerMipmapMode;
 
 typedef enum Refresh_SamplerAddressMode
 {
-	REFRESH_SAMPLERADDRESSMODE_REPEAT,
-	REFRESH_SAMPLERADDRESSMODE_MIRRORED_REPEAT,
-	REFRESH_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
-	REFRESH_SAMPLERADDRESSMODE_CLAMP_TO_BORDER
+    REFRESH_SAMPLERADDRESSMODE_REPEAT,
+    REFRESH_SAMPLERADDRESSMODE_MIRRORED_REPEAT,
+    REFRESH_SAMPLERADDRESSMODE_CLAMP_TO_EDGE,
+    REFRESH_SAMPLERADDRESSMODE_CLAMP_TO_BORDER
 } Refresh_SamplerAddressMode;
 
 /* FIXME: we should probably make a library-level decision about color types */
 typedef enum Refresh_BorderColor
 {
-	REFRESH_BORDERCOLOR_FLOAT_TRANSPARENT_BLACK,
-	REFRESH_BORDERCOLOR_INT_TRANSPARENT_BLACK,
-	REFRESH_BORDERCOLOR_FLOAT_OPAQUE_BLACK,
-	REFRESH_BORDERCOLOR_INT_OPAQUE_BLACK,
-	REFRESH_BORDERCOLOR_FLOAT_OPAQUE_WHITE,
-	REFRESH_BORDERCOLOR_INT_OPAQUE_WHITE
+    REFRESH_BORDERCOLOR_FLOAT_TRANSPARENT_BLACK,
+    REFRESH_BORDERCOLOR_INT_TRANSPARENT_BLACK,
+    REFRESH_BORDERCOLOR_FLOAT_OPAQUE_BLACK,
+    REFRESH_BORDERCOLOR_INT_OPAQUE_BLACK,
+    REFRESH_BORDERCOLOR_FLOAT_OPAQUE_WHITE,
+    REFRESH_BORDERCOLOR_INT_OPAQUE_WHITE
 } Refresh_BorderColor;
 
 typedef enum Refresh_TransferUsage
 {
-	REFRESH_TRANSFERUSAGE_BUFFER,
-	REFRESH_TRANSFERUSAGE_TEXTURE
+    REFRESH_TRANSFERUSAGE_BUFFER,
+    REFRESH_TRANSFERUSAGE_TEXTURE
 } Refresh_TransferUsage;
 
 /*
@@ -377,9 +377,9 @@ typedef enum Refresh_TransferUsage
  */
 typedef enum Refresh_PresentMode
 {
-	REFRESH_PRESENTMODE_VSYNC,
-	REFRESH_PRESENTMODE_IMMEDIATE,
-	REFRESH_PRESENTMODE_MAILBOX
+    REFRESH_PRESENTMODE_VSYNC,
+    REFRESH_PRESENTMODE_IMMEDIATE,
+    REFRESH_PRESENTMODE_MAILBOX
 } Refresh_PresentMode;
 
 /*
@@ -402,11 +402,11 @@ typedef enum Refresh_SwapchainComposition
 
 typedef enum Refresh_BackendBits
 {
-	REFRESH_BACKEND_INVALID = 0,
-	REFRESH_BACKEND_VULKAN  = 0x0000000000000001,
-	REFRESH_BACKEND_D3D11   = 0x0000000000000002,
-	REFRESH_BACKEND_METAL   = 0x0000000000000004,
-	REFRESH_BACKEND_ALL = (REFRESH_BACKEND_VULKAN | REFRESH_BACKEND_D3D11 | REFRESH_BACKEND_METAL)
+    REFRESH_BACKEND_INVALID = 0,
+    REFRESH_BACKEND_VULKAN = 0x0000000000000001,
+    REFRESH_BACKEND_D3D11 = 0x0000000000000002,
+    REFRESH_BACKEND_METAL = 0x0000000000000004,
+    REFRESH_BACKEND_ALL = (REFRESH_BACKEND_VULKAN | REFRESH_BACKEND_D3D11 | REFRESH_BACKEND_METAL)
 } Refresh_BackendBits;
 
 typedef Uint64 Refresh_Backend;
@@ -415,74 +415,74 @@ typedef Uint64 Refresh_Backend;
 
 typedef struct Refresh_DepthStencilValue
 {
-	float depth;
-	Uint32 stencil;
+    float depth;
+    Uint32 stencil;
 } Refresh_DepthStencilValue;
 
 typedef struct Refresh_Rect
 {
-	Sint32 x;
-	Sint32 y;
-	Sint32 w;
-	Sint32 h;
+    Sint32 x;
+    Sint32 y;
+    Sint32 w;
+    Sint32 h;
 } Refresh_Rect;
 
 typedef struct Refresh_Color
 {
-	float r;
-	float g;
-	float b;
-	float a;
+    float r;
+    float g;
+    float b;
+    float a;
 } Refresh_Color;
 
 typedef struct Refresh_Viewport
 {
-	float x;
-	float y;
-	float w;
-	float h;
-	float minDepth;
-	float maxDepth;
+    float x;
+    float y;
+    float w;
+    float h;
+    float minDepth;
+    float maxDepth;
 } Refresh_Viewport;
 
 typedef struct Refresh_TextureSlice
 {
-	Refresh_Texture *texture;
-	Uint32 mipLevel;
-	Uint32 layer;
+    Refresh_Texture *texture;
+    Uint32 mipLevel;
+    Uint32 layer;
 } Refresh_TextureSlice;
 
 typedef struct Refresh_TextureRegion
 {
-	Refresh_TextureSlice textureSlice;
-	Uint32 x;
-	Uint32 y;
-	Uint32 z;
-	Uint32 w;
-	Uint32 h;
-	Uint32 d;
+    Refresh_TextureSlice textureSlice;
+    Uint32 x;
+    Uint32 y;
+    Uint32 z;
+    Uint32 w;
+    Uint32 h;
+    Uint32 d;
 } Refresh_TextureRegion;
 
 typedef struct Refresh_BufferImageCopy
 {
-	Uint32 bufferOffset;
-	Uint32 bufferStride; /* number of pixels from one row to the next */
-	Uint32 bufferImageHeight; /* number of rows from one layer/depth-slice to the next */
+    Uint32 bufferOffset;
+    Uint32 bufferStride;      /* number of pixels from one row to the next */
+    Uint32 bufferImageHeight; /* number of rows from one layer/depth-slice to the next */
 } Refresh_BufferImageCopy;
 
 typedef struct Refresh_BufferCopy
 {
-	Uint32 srcOffset;
-	Uint32 dstOffset;
-	Uint32 size;
+    Uint32 srcOffset;
+    Uint32 dstOffset;
+    Uint32 size;
 } Refresh_BufferCopy;
 
 typedef struct Refresh_IndirectDrawCommand
 {
-	Uint32 vertexCount;   /* number of vertices to draw */
-	Uint32 instanceCount; /* number of instances to draw */
-	Uint32 firstVertex;   /* index of the first vertex to draw */
-	Uint32 firstInstance; /* ID of the first instance to draw */
+    Uint32 vertexCount;   /* number of vertices to draw */
+    Uint32 instanceCount; /* number of instances to draw */
+    Uint32 firstVertex;   /* index of the first vertex to draw */
+    Uint32 firstInstance; /* ID of the first instance to draw */
 } Refresh_IndirectDrawCommand;
 
 typedef struct Refresh_IndexedIndirectDrawCommand
@@ -498,177 +498,177 @@ typedef struct Refresh_IndexedIndirectDrawCommand
 
 typedef struct Refresh_SamplerCreateInfo
 {
-	Refresh_Filter minFilter;
-	Refresh_Filter magFilter;
-	Refresh_SamplerMipmapMode mipmapMode;
-	Refresh_SamplerAddressMode addressModeU;
-	Refresh_SamplerAddressMode addressModeV;
-	Refresh_SamplerAddressMode addressModeW;
-	float mipLodBias;
-	SDL_bool anisotropyEnable;
-	float maxAnisotropy;
-	SDL_bool compareEnable;
-	Refresh_CompareOp compareOp;
-	float minLod;
-	float maxLod;
-	Refresh_BorderColor borderColor;
+    Refresh_Filter minFilter;
+    Refresh_Filter magFilter;
+    Refresh_SamplerMipmapMode mipmapMode;
+    Refresh_SamplerAddressMode addressModeU;
+    Refresh_SamplerAddressMode addressModeV;
+    Refresh_SamplerAddressMode addressModeW;
+    float mipLodBias;
+    SDL_bool anisotropyEnable;
+    float maxAnisotropy;
+    SDL_bool compareEnable;
+    Refresh_CompareOp compareOp;
+    float minLod;
+    float maxLod;
+    Refresh_BorderColor borderColor;
 } Refresh_SamplerCreateInfo;
 
 typedef struct Refresh_VertexBinding
 {
-	Uint32 binding;
-	Uint32 stride;
-	Refresh_VertexInputRate inputRate;
+    Uint32 binding;
+    Uint32 stride;
+    Refresh_VertexInputRate inputRate;
     Uint32 stepRate;
 } Refresh_VertexBinding;
 
 typedef struct Refresh_VertexAttribute
 {
-	Uint32 location;
-	Uint32 binding;
-	Refresh_VertexElementFormat format;
-	Uint32 offset;
+    Uint32 location;
+    Uint32 binding;
+    Refresh_VertexElementFormat format;
+    Uint32 offset;
 } Refresh_VertexAttribute;
 
 typedef struct Refresh_VertexInputState
 {
-	const Refresh_VertexBinding *vertexBindings;
-	Uint32 vertexBindingCount;
-	const Refresh_VertexAttribute *vertexAttributes;
-	Uint32 vertexAttributeCount;
+    const Refresh_VertexBinding *vertexBindings;
+    Uint32 vertexBindingCount;
+    const Refresh_VertexAttribute *vertexAttributes;
+    Uint32 vertexAttributeCount;
 } Refresh_VertexInputState;
 
 typedef struct Refresh_StencilOpState
 {
-	Refresh_StencilOp failOp;
-	Refresh_StencilOp passOp;
-	Refresh_StencilOp depthFailOp;
-	Refresh_CompareOp compareOp;
+    Refresh_StencilOp failOp;
+    Refresh_StencilOp passOp;
+    Refresh_StencilOp depthFailOp;
+    Refresh_CompareOp compareOp;
 } Refresh_StencilOpState;
 
 typedef struct Refresh_ColorAttachmentBlendState
 {
-	SDL_bool blendEnable;
-	Refresh_BlendFactor srcColorBlendFactor;
-	Refresh_BlendFactor dstColorBlendFactor;
-	Refresh_BlendOp colorBlendOp;
-	Refresh_BlendFactor srcAlphaBlendFactor;
-	Refresh_BlendFactor dstAlphaBlendFactor;
-	Refresh_BlendOp alphaBlendOp;
-	Refresh_ColorComponentFlags colorWriteMask;
+    SDL_bool blendEnable;
+    Refresh_BlendFactor srcColorBlendFactor;
+    Refresh_BlendFactor dstColorBlendFactor;
+    Refresh_BlendOp colorBlendOp;
+    Refresh_BlendFactor srcAlphaBlendFactor;
+    Refresh_BlendFactor dstAlphaBlendFactor;
+    Refresh_BlendOp alphaBlendOp;
+    Refresh_ColorComponentFlags colorWriteMask;
 } Refresh_ColorAttachmentBlendState;
 
 typedef struct Refresh_ShaderCreateInfo
 {
-	size_t codeSize;
-	const Uint8 *code;
-	const char* entryPointName;
-	Refresh_ShaderFormat format;
-	Refresh_ShaderStage stage;
-	Uint32 samplerCount;
-	Uint32 storageTextureCount;
-	Uint32 storageBufferCount;
-	Uint32 uniformBufferCount;
+    size_t codeSize;
+    const Uint8 *code;
+    const char *entryPointName;
+    Refresh_ShaderFormat format;
+    Refresh_ShaderStage stage;
+    Uint32 samplerCount;
+    Uint32 storageTextureCount;
+    Uint32 storageBufferCount;
+    Uint32 uniformBufferCount;
 } Refresh_ShaderCreateInfo;
 
 typedef struct Refresh_TextureCreateInfo
 {
-	Uint32 width;
-	Uint32 height;
-	Uint32 depth;
-	SDL_bool isCube;
-	Uint32 layerCount;
-	Uint32 levelCount;
-	Refresh_SampleCount sampleCount;
-	Refresh_TextureFormat format;
-	Refresh_TextureUsageFlags usageFlags;
+    Uint32 width;
+    Uint32 height;
+    Uint32 depth;
+    SDL_bool isCube;
+    Uint32 layerCount;
+    Uint32 levelCount;
+    Refresh_SampleCount sampleCount;
+    Refresh_TextureFormat format;
+    Refresh_TextureUsageFlags usageFlags;
 } Refresh_TextureCreateInfo;
 
 /* Pipeline state structures */
 
 typedef struct Refresh_RasterizerState
 {
-	Refresh_FillMode fillMode;
-	Refresh_CullMode cullMode;
-	Refresh_FrontFace frontFace;
-	SDL_bool depthBiasEnable;
-	float depthBiasConstantFactor;
-	float depthBiasClamp;
-	float depthBiasSlopeFactor;
+    Refresh_FillMode fillMode;
+    Refresh_CullMode cullMode;
+    Refresh_FrontFace frontFace;
+    SDL_bool depthBiasEnable;
+    float depthBiasConstantFactor;
+    float depthBiasClamp;
+    float depthBiasSlopeFactor;
 } Refresh_RasterizerState;
 
 typedef struct Refresh_MultisampleState
 {
-	Refresh_SampleCount multisampleCount;
-	Uint32 sampleMask;
+    Refresh_SampleCount multisampleCount;
+    Uint32 sampleMask;
 } Refresh_MultisampleState;
 
 typedef struct Refresh_DepthStencilState
 {
-	SDL_bool depthTestEnable;
-	SDL_bool depthWriteEnable;
-	Refresh_CompareOp compareOp;
-	SDL_bool depthBoundsTestEnable;
-	SDL_bool stencilTestEnable;
-	Refresh_StencilOpState backStencilState;
-	Refresh_StencilOpState frontStencilState;
-	Uint32 compareMask;
-	Uint32 writeMask;
-	Uint32 reference;
-	float minDepthBounds;
-	float maxDepthBounds;
+    SDL_bool depthTestEnable;
+    SDL_bool depthWriteEnable;
+    Refresh_CompareOp compareOp;
+    SDL_bool depthBoundsTestEnable;
+    SDL_bool stencilTestEnable;
+    Refresh_StencilOpState backStencilState;
+    Refresh_StencilOpState frontStencilState;
+    Uint32 compareMask;
+    Uint32 writeMask;
+    Uint32 reference;
+    float minDepthBounds;
+    float maxDepthBounds;
 } Refresh_DepthStencilState;
 
 typedef struct Refresh_ColorAttachmentDescription
 {
-	Refresh_TextureFormat format;
-	Refresh_ColorAttachmentBlendState blendState;
+    Refresh_TextureFormat format;
+    Refresh_ColorAttachmentBlendState blendState;
 } Refresh_ColorAttachmentDescription;
 
 typedef struct Refresh_GraphicsPipelineAttachmentInfo
 {
-	Refresh_ColorAttachmentDescription *colorAttachmentDescriptions;
-	Uint32 colorAttachmentCount;
-	SDL_bool hasDepthStencilAttachment;
-	Refresh_TextureFormat depthStencilFormat;
+    Refresh_ColorAttachmentDescription *colorAttachmentDescriptions;
+    Uint32 colorAttachmentCount;
+    SDL_bool hasDepthStencilAttachment;
+    Refresh_TextureFormat depthStencilFormat;
 } Refresh_GraphicsPipelineAttachmentInfo;
 
 typedef struct Refresh_GraphicsPipelineCreateInfo
 {
-	Refresh_Shader *vertexShader;
-	Refresh_Shader *fragmentShader;
-	Refresh_VertexInputState vertexInputState;
-	Refresh_PrimitiveType primitiveType;
-	Refresh_RasterizerState rasterizerState;
-	Refresh_MultisampleState multisampleState;
-	Refresh_DepthStencilState depthStencilState;
-	Refresh_GraphicsPipelineAttachmentInfo attachmentInfo;
-	float blendConstants[4];
+    Refresh_Shader *vertexShader;
+    Refresh_Shader *fragmentShader;
+    Refresh_VertexInputState vertexInputState;
+    Refresh_PrimitiveType primitiveType;
+    Refresh_RasterizerState rasterizerState;
+    Refresh_MultisampleState multisampleState;
+    Refresh_DepthStencilState depthStencilState;
+    Refresh_GraphicsPipelineAttachmentInfo attachmentInfo;
+    float blendConstants[4];
 } Refresh_GraphicsPipelineCreateInfo;
 
 typedef struct Refresh_ComputePipelineCreateInfo
 {
-	size_t codeSize;
-	const Uint8 *code;
-	const char *entryPointName;
-	Refresh_ShaderFormat format;
-	Uint32 readOnlyStorageTextureCount;
-	Uint32 readOnlyStorageBufferCount;
-	Uint32 readWriteStorageTextureCount;
-	Uint32 readWriteStorageBufferCount;
-	Uint32 uniformBufferCount;
-	Uint32 threadCountX;
-	Uint32 threadCountY;
-	Uint32 threadCountZ;
+    size_t codeSize;
+    const Uint8 *code;
+    const char *entryPointName;
+    Refresh_ShaderFormat format;
+    Uint32 readOnlyStorageTextureCount;
+    Uint32 readOnlyStorageBufferCount;
+    Uint32 readWriteStorageTextureCount;
+    Uint32 readWriteStorageBufferCount;
+    Uint32 uniformBufferCount;
+    Uint32 threadCountX;
+    Uint32 threadCountY;
+    Uint32 threadCountZ;
 } Refresh_ComputePipelineCreateInfo;
 
 typedef struct Refresh_ColorAttachmentInfo
 {
     /* The texture slice that will be used as a color attachment by a render pass. */
-	Refresh_TextureSlice textureSlice;
+    Refresh_TextureSlice textureSlice;
 
     /* Can be ignored by RenderPass if CLEAR is not used */
-	Refresh_Color clearColor;
+    Refresh_Color clearColor;
 
     /* Determines what is done with the texture slice at the beginning of the render pass.
      *
@@ -682,30 +682,30 @@ typedef struct Refresh_ColorAttachmentInfo
      *     The driver will do whatever it wants with the texture slice memory.
      *     This is a good option if you know that every single pixel will be touched in the render pass.
      */
-	Refresh_LoadOp loadOp;
+    Refresh_LoadOp loadOp;
 
     /* Determines what is done with the texture slice at the end of the render pass.
-    *
-    *   STORE:
-    *     Stores the results of the render pass in the texture slice.
-    *
-    *   DONT_CARE:
-    *     The driver will do whatever it wants with the texture slice memory.
-    *     This is often a good option for depth/stencil textures.
-    */
-	Refresh_StoreOp storeOp;
+     *
+     *   STORE:
+     *     Stores the results of the render pass in the texture slice.
+     *
+     *   DONT_CARE:
+     *     The driver will do whatever it wants with the texture slice memory.
+     *     This is often a good option for depth/stencil textures.
+     */
+    Refresh_StoreOp storeOp;
 
     /* if SDL_TRUE, cycles the texture if the texture slice is bound and loadOp is not LOAD */
-	SDL_bool cycle;
+    SDL_bool cycle;
 } Refresh_ColorAttachmentInfo;
 
 typedef struct Refresh_DepthStencilAttachmentInfo
 {
     /* The texture slice that will be used as the depth stencil attachment by a render pass. */
-	Refresh_TextureSlice textureSlice;
+    Refresh_TextureSlice textureSlice;
 
     /* Can be ignored by the render pass if CLEAR is not used */
-	Refresh_DepthStencilValue depthStencilClearValue;
+    Refresh_DepthStencilValue depthStencilClearValue;
 
     /* Determines what is done with the depth values at the beginning of the render pass.
      *
@@ -719,7 +719,7 @@ typedef struct Refresh_DepthStencilAttachmentInfo
      *     The driver will do whatever it wants with the memory.
      *     This is a good option if you know that every single pixel will be touched in the render pass.
      */
-	Refresh_LoadOp loadOp;
+    Refresh_LoadOp loadOp;
 
     /* Determines what is done with the depth values at the end of the render pass.
      *
@@ -730,7 +730,7 @@ typedef struct Refresh_DepthStencilAttachmentInfo
      *     The driver will do whatever it wants with the texture slice memory.
      *     This is often a good option for depth/stencil textures.
      */
-	Refresh_StoreOp storeOp;
+    Refresh_StoreOp storeOp;
 
     /* Determines what is done with the stencil values at the beginning of the render pass.
      *
@@ -744,7 +744,7 @@ typedef struct Refresh_DepthStencilAttachmentInfo
      *     The driver will do whatever it wants with the memory.
      *     This is a good option if you know that every single pixel will be touched in the render pass.
      */
-	Refresh_LoadOp stencilLoadOp;
+    Refresh_LoadOp stencilLoadOp;
 
     /* Determines what is done with the stencil values at the end of the render pass.
      *
@@ -755,40 +755,40 @@ typedef struct Refresh_DepthStencilAttachmentInfo
      *     The driver will do whatever it wants with the texture slice memory.
      *     This is often a good option for depth/stencil textures.
      */
-	Refresh_StoreOp stencilStoreOp;
+    Refresh_StoreOp stencilStoreOp;
 
     /* if SDL_TRUE, cycles the texture if the texture slice is bound and any load ops are not LOAD */
-	SDL_bool cycle;
+    SDL_bool cycle;
 } Refresh_DepthStencilAttachmentInfo;
 
 /* Binding structs */
 
 typedef struct Refresh_BufferBinding
 {
-	Refresh_Buffer *buffer;
-	Uint32 offset;
+    Refresh_Buffer *buffer;
+    Uint32 offset;
 } Refresh_BufferBinding;
 
 typedef struct Refresh_TextureSamplerBinding
 {
-	Refresh_Texture *texture;
-	Refresh_Sampler *sampler;
+    Refresh_Texture *texture;
+    Refresh_Sampler *sampler;
 } Refresh_TextureSamplerBinding;
 
 typedef struct Refresh_StorageBufferReadWriteBinding
 {
-	Refresh_Buffer *buffer;
+    Refresh_Buffer *buffer;
 
     /* if SDL_TRUE, cycles the buffer if it is bound. */
-	SDL_bool cycle;
+    SDL_bool cycle;
 } Refresh_StorageBufferReadWriteBinding;
 
 typedef struct Refresh_StorageTextureReadWriteBinding
 {
-	Refresh_TextureSlice textureSlice;
+    Refresh_TextureSlice textureSlice;
 
     /* if SDL_TRUE, cycles the texture if the texture slice is bound. */
-	SDL_bool cycle;
+    SDL_bool cycle;
 } Refresh_StorageTextureReadWriteBinding;
 
 /* Functions */
@@ -809,10 +809,9 @@ typedef struct Refresh_StorageTextureReadWriteBinding
  * \sa Refresh_SelectBackend
  * \sa Refresh_DestroyDevice
  */
-REFRESHAPI Refresh_Device* Refresh_CreateDevice(
-	Refresh_Backend preferredBackends,
-	SDL_bool debugMode
-);
+REFRESHAPI Refresh_Device *Refresh_CreateDevice(
+    Refresh_Backend preferredBackends,
+    SDL_bool debugMode);
 
 /**
  * Destroys a GPU context previously returned by Refresh_CreateDevice.
@@ -845,10 +844,9 @@ REFRESHAPI Refresh_Backend Refresh_GetBackend(Refresh_Device *device);
  * \sa Refresh_BindComputePipeline
  * \sa Refresh_ReleaseComputePipeline
  */
-REFRESHAPI Refresh_ComputePipeline* Refresh_CreateComputePipeline(
-	Refresh_Device *device,
-	Refresh_ComputePipelineCreateInfo *computePipelineCreateInfo
-);
+REFRESHAPI Refresh_ComputePipeline *Refresh_CreateComputePipeline(
+    Refresh_Device *device,
+    Refresh_ComputePipelineCreateInfo *computePipelineCreateInfo);
 
 /**
  * Creates a pipeline object to be used in a graphics workflow.
@@ -861,10 +859,9 @@ REFRESHAPI Refresh_ComputePipeline* Refresh_CreateComputePipeline(
  * \sa Refresh_BindGraphicsPipeline
  * \sa Refresh_ReleaseGraphicsPipeline
  */
-REFRESHAPI Refresh_GraphicsPipeline* Refresh_CreateGraphicsPipeline(
-	Refresh_Device *device,
-	Refresh_GraphicsPipelineCreateInfo *pipelineCreateInfo
-);
+REFRESHAPI Refresh_GraphicsPipeline *Refresh_CreateGraphicsPipeline(
+    Refresh_Device *device,
+    Refresh_GraphicsPipelineCreateInfo *pipelineCreateInfo);
 
 /**
  * Creates a sampler object to be used when binding textures in a graphics workflow.
@@ -877,10 +874,9 @@ REFRESHAPI Refresh_GraphicsPipeline* Refresh_CreateGraphicsPipeline(
  * \sa Refresh_BindFragmentSamplers
  * \sa SDL_ReleaseSampler
  */
-REFRESHAPI Refresh_Sampler* Refresh_CreateSampler(
-	Refresh_Device *device,
-	Refresh_SamplerCreateInfo *samplerCreateInfo
-);
+REFRESHAPI Refresh_Sampler *Refresh_CreateSampler(
+    Refresh_Device *device,
+    Refresh_SamplerCreateInfo *samplerCreateInfo);
 
 /**
  * Creates a shader to be used when creating a graphics pipeline.
@@ -892,10 +888,9 @@ REFRESHAPI Refresh_Sampler* Refresh_CreateSampler(
  * \sa Refresh_CreateGraphicsPipeline
  * \sa Refresh_ReleaseShader
  */
-REFRESHAPI Refresh_Shader* Refresh_CreateShader(
-	Refresh_Device *device,
-	Refresh_ShaderCreateInfo *shaderCreateInfo
-);
+REFRESHAPI Refresh_Shader *Refresh_CreateShader(
+    Refresh_Device *device,
+    Refresh_ShaderCreateInfo *shaderCreateInfo);
 
 /**
  * Creates a texture object to be used in graphics or compute workflows.
@@ -921,10 +916,9 @@ REFRESHAPI Refresh_Shader* Refresh_CreateShader(
  * \sa Refresh_Blit
  * \sa Refresh_ReleaseTexture
  */
-REFRESHAPI Refresh_Texture* Refresh_CreateTexture(
-	Refresh_Device *device,
-	Refresh_TextureCreateInfo *textureCreateInfo
-);
+REFRESHAPI Refresh_Texture *Refresh_CreateTexture(
+    Refresh_Device *device,
+    Refresh_TextureCreateInfo *textureCreateInfo);
 
 /**
  * Creates a buffer object to be used in graphics or compute workflows.
@@ -946,11 +940,10 @@ REFRESHAPI Refresh_Texture* Refresh_CreateTexture(
  * \sa Refresh_BindComputeStorageBuffers
  * \sa Refresh_ReleaseBuffer
  */
-REFRESHAPI Refresh_Buffer* Refresh_CreateBuffer(
-	Refresh_Device *device,
-	Refresh_BufferUsageFlags usageFlags,
-	Uint32 sizeInBytes
-);
+REFRESHAPI Refresh_Buffer *Refresh_CreateBuffer(
+    Refresh_Device *device,
+    Refresh_BufferUsageFlags usageFlags,
+    Uint32 sizeInBytes);
 
 /**
  * Creates a transfer buffer to be used when uploading to or downloading from graphics resources.
@@ -967,12 +960,11 @@ REFRESHAPI Refresh_Buffer* Refresh_CreateBuffer(
  * \sa Refresh_DownloadFromTexture
  * \sa Refresh_ReleaseTransferBuffer
  */
-REFRESHAPI Refresh_TransferBuffer* Refresh_CreateTransferBuffer(
-	Refresh_Device *device,
-	Refresh_TransferUsage usage,
+REFRESHAPI Refresh_TransferBuffer *Refresh_CreateTransferBuffer(
+    Refresh_Device *device,
+    Refresh_TransferUsage usage,
     Refresh_TransferBufferMapFlags mapFlags,
-	Uint32 sizeInBytes
-);
+    Uint32 sizeInBytes);
 
 /* Debug Naming */
 
@@ -984,10 +976,9 @@ REFRESHAPI Refresh_TransferBuffer* Refresh_CreateTransferBuffer(
  * \param text a UTF-8 string constant to mark as the name of the buffer
  */
 REFRESHAPI void Refresh_SetBufferName(
-	Refresh_Device *device,
-	Refresh_Buffer *buffer,
-	const char *text
-);
+    Refresh_Device *device,
+    Refresh_Buffer *buffer,
+    const char *text);
 
 /**
  * Sets an arbitrary string constant to label a texture. Useful for debugging.
@@ -997,10 +988,9 @@ REFRESHAPI void Refresh_SetBufferName(
  * \param text a UTF-8 string constant to mark as the name of the texture
  */
 REFRESHAPI void Refresh_SetTextureName(
-	Refresh_Device *device,
-	Refresh_Texture *texture,
-	const char *text
-);
+    Refresh_Device *device,
+    Refresh_Texture *texture,
+    const char *text);
 
 /**
  * Sets an arbitrary string constant to label a section of a command buffer. Useful for debugging.
@@ -1010,8 +1000,7 @@ REFRESHAPI void Refresh_SetTextureName(
  */
 REFRESHAPI void Refresh_SetStringMarker(
     Refresh_CommandBuffer *commandBuffer,
-    const char *text
-);
+    const char *text);
 
 /* Disposal */
 
@@ -1023,9 +1012,8 @@ REFRESHAPI void Refresh_SetStringMarker(
  * \param texture a texture to be destroyed
  */
 REFRESHAPI void Refresh_ReleaseTexture(
-	Refresh_Device *device,
-	Refresh_Texture *texture
-);
+    Refresh_Device *device,
+    Refresh_Texture *texture);
 
 /**
  * Frees the given sampler as soon as it is safe to do so.
@@ -1035,9 +1023,8 @@ REFRESHAPI void Refresh_ReleaseTexture(
  * \param sampler a sampler to be destroyed
  */
 REFRESHAPI void Refresh_ReleaseSampler(
-	Refresh_Device *device,
-	Refresh_Sampler *sampler
-);
+    Refresh_Device *device,
+    Refresh_Sampler *sampler);
 
 /**
  * Frees the given buffer as soon as it is safe to do so.
@@ -1047,9 +1034,8 @@ REFRESHAPI void Refresh_ReleaseSampler(
  * \param buffer a buffer to be destroyed
  */
 REFRESHAPI void Refresh_ReleaseBuffer(
-	Refresh_Device *device,
-	Refresh_Buffer *buffer
-);
+    Refresh_Device *device,
+    Refresh_Buffer *buffer);
 
 /**
  * Frees the given transfer buffer as soon as it is safe to do so.
@@ -1059,9 +1045,8 @@ REFRESHAPI void Refresh_ReleaseBuffer(
  * \param transferBuffer a transfer buffer to be destroyed
  */
 REFRESHAPI void Refresh_ReleaseTransferBuffer(
-	Refresh_Device *device,
-	Refresh_TransferBuffer *transferBuffer
-);
+    Refresh_Device *device,
+    Refresh_TransferBuffer *transferBuffer);
 
 /**
  * Frees the given compute pipeline as soon as it is safe to do so.
@@ -1071,9 +1056,8 @@ REFRESHAPI void Refresh_ReleaseTransferBuffer(
  * \param computePipeline a compute pipeline to be destroyed
  */
 REFRESHAPI void Refresh_ReleaseComputePipeline(
-	Refresh_Device *device,
-	Refresh_ComputePipeline *computePipeline
-);
+    Refresh_Device *device,
+    Refresh_ComputePipeline *computePipeline);
 
 /**
  * Frees the given shader as soon as it is safe to do so.
@@ -1083,9 +1067,8 @@ REFRESHAPI void Refresh_ReleaseComputePipeline(
  * \param shader a shader to be destroyed
  */
 REFRESHAPI void Refresh_ReleaseShader(
-	Refresh_Device *device,
-	Refresh_Shader *shader
-);
+    Refresh_Device *device,
+    Refresh_Shader *shader);
 
 /**
  * Frees the given graphics pipeline as soon as it is safe to do so.
@@ -1095,9 +1078,8 @@ REFRESHAPI void Refresh_ReleaseShader(
  * \param graphicsPipeline a graphics pipeline to be destroyed
  */
 REFRESHAPI void Refresh_ReleaseGraphicsPipeline(
-	Refresh_Device *device,
-	Refresh_GraphicsPipeline *graphicsPipeline
-);
+    Refresh_Device *device,
+    Refresh_GraphicsPipeline *graphicsPipeline);
 
 /*
  * A NOTE ON CYCLING
@@ -1156,12 +1138,11 @@ REFRESHAPI void Refresh_ReleaseGraphicsPipeline(
  *
  * \sa Refresh_EndRenderPass
  */
-REFRESHAPI Refresh_RenderPass* Refresh_BeginRenderPass(
-	Refresh_CommandBuffer *commandBuffer,
-	Refresh_ColorAttachmentInfo *colorAttachmentInfos,
-	Uint32 colorAttachmentCount,
-	Refresh_DepthStencilAttachmentInfo *depthStencilAttachmentInfo
-);
+REFRESHAPI Refresh_RenderPass *Refresh_BeginRenderPass(
+    Refresh_CommandBuffer *commandBuffer,
+    Refresh_ColorAttachmentInfo *colorAttachmentInfos,
+    Uint32 colorAttachmentCount,
+    Refresh_DepthStencilAttachmentInfo *depthStencilAttachmentInfo);
 
 /**
  * Binds a graphics pipeline on a render pass to be used in rendering.
@@ -1172,8 +1153,7 @@ REFRESHAPI Refresh_RenderPass* Refresh_BeginRenderPass(
  */
 REFRESHAPI void Refresh_BindGraphicsPipeline(
     Refresh_RenderPass *renderPass,
-	Refresh_GraphicsPipeline *graphicsPipeline
-);
+    Refresh_GraphicsPipeline *graphicsPipeline);
 
 /**
  * Sets the current viewport state on a command buffer.
@@ -1183,8 +1163,7 @@ REFRESHAPI void Refresh_BindGraphicsPipeline(
  */
 REFRESHAPI void Refresh_SetViewport(
     Refresh_RenderPass *renderPass,
-	Refresh_Viewport *viewport
-);
+    Refresh_Viewport *viewport);
 
 /**
  * Sets the current scissor state on a command buffer.
@@ -1194,8 +1173,7 @@ REFRESHAPI void Refresh_SetViewport(
  */
 REFRESHAPI void Refresh_SetScissor(
     Refresh_RenderPass *renderPass,
-	Refresh_Rect *scissor
-);
+    Refresh_Rect *scissor);
 
 /**
  * Binds vertex buffers on a command buffer for use with subsequent draw calls.
@@ -1207,10 +1185,9 @@ REFRESHAPI void Refresh_SetScissor(
  */
 REFRESHAPI void Refresh_BindVertexBuffers(
     Refresh_RenderPass *renderPass,
-	Uint32 firstBinding,
+    Uint32 firstBinding,
     Refresh_BufferBinding *pBindings,
-	Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Binds an index buffer on a command buffer for use with subsequent draw calls.
@@ -1221,9 +1198,8 @@ REFRESHAPI void Refresh_BindVertexBuffers(
  */
 REFRESHAPI void Refresh_BindIndexBuffer(
     Refresh_RenderPass *renderPass,
-	Refresh_BufferBinding *pBinding,
-	Refresh_IndexElementSize indexElementSize
-);
+    Refresh_BufferBinding *pBinding,
+    Refresh_IndexElementSize indexElementSize);
 
 /**
  * Binds texture-sampler pairs for use on the vertex shader.
@@ -1238,8 +1214,7 @@ REFRESHAPI void Refresh_BindVertexSamplers(
     Refresh_RenderPass *renderPass,
     Uint32 firstSlot,
     Refresh_TextureSamplerBinding *textureSamplerBindings,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Binds storage textures for use on the vertex shader.
@@ -1254,8 +1229,7 @@ REFRESHAPI void Refresh_BindVertexStorageTextures(
     Refresh_RenderPass *renderPass,
     Uint32 firstSlot,
     Refresh_TextureSlice *storageTextureSlices,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Binds storage buffers for use on the vertex shader.
@@ -1270,8 +1244,7 @@ REFRESHAPI void Refresh_BindVertexStorageBuffers(
     Refresh_RenderPass *renderPass,
     Uint32 firstSlot,
     Refresh_Buffer **storageBuffers,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Binds texture-sampler pairs for use on the fragment shader.
@@ -1286,8 +1259,7 @@ REFRESHAPI void Refresh_BindFragmentSamplers(
     Refresh_RenderPass *renderPass,
     Uint32 firstSlot,
     Refresh_TextureSamplerBinding *textureSamplerBindings,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Binds storage textures for use on the fragment shader.
@@ -1302,8 +1274,7 @@ REFRESHAPI void Refresh_BindFragmentStorageTextures(
     Refresh_RenderPass *renderPass,
     Uint32 firstSlot,
     Refresh_TextureSlice *storageTextureSlices,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Binds storage buffers for use on the fragment shader.
@@ -1318,8 +1289,7 @@ REFRESHAPI void Refresh_BindFragmentStorageBuffers(
     Refresh_RenderPass *renderPass,
     Uint32 firstSlot,
     Refresh_Buffer **storageBuffers,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Pushes data to a vertex uniform slot on the bound graphics pipeline.
@@ -1331,11 +1301,10 @@ REFRESHAPI void Refresh_BindFragmentStorageBuffers(
  * \param dataLengthInBytes the length of the data to write
  */
 REFRESHAPI void Refresh_PushVertexUniformData(
-	Refresh_RenderPass *renderPass,
+    Refresh_RenderPass *renderPass,
     Uint32 slotIndex,
-	void *data,
-	Uint32 dataLengthInBytes
-);
+    void *data,
+    Uint32 dataLengthInBytes);
 
 /**
  * Pushes data to a fragment uniform slot on the bound graphics pipeline.
@@ -1347,11 +1316,10 @@ REFRESHAPI void Refresh_PushVertexUniformData(
  * \param dataLengthInBytes the length of the data to write
  */
 REFRESHAPI void Refresh_PushFragmentUniformData(
-	Refresh_RenderPass *renderPass,
+    Refresh_RenderPass *renderPass,
     Uint32 slotIndex,
-	void *data,
-	Uint32 dataLengthInBytes
-);
+    void *data,
+    Uint32 dataLengthInBytes);
 
 /* Drawing */
 
@@ -1366,12 +1334,11 @@ REFRESHAPI void Refresh_PushFragmentUniformData(
  * \param instanceCount the number of instances that will be drawn
  */
 REFRESHAPI void Refresh_DrawIndexedPrimitives(
-	Refresh_RenderPass *renderPass,
-	Uint32 baseVertex,
-	Uint32 startIndex,
-	Uint32 primitiveCount,
-	Uint32 instanceCount
-);
+    Refresh_RenderPass *renderPass,
+    Uint32 baseVertex,
+    Uint32 startIndex,
+    Uint32 primitiveCount,
+    Uint32 instanceCount);
 
 /**
  * Draws data using bound graphics state.
@@ -1382,10 +1349,9 @@ REFRESHAPI void Refresh_DrawIndexedPrimitives(
  * \param primitiveCount The number of primitives to draw
  */
 REFRESHAPI void Refresh_DrawPrimitives(
-	Refresh_RenderPass *renderPass,
-	Uint32 vertexStart,
-	Uint32 primitiveCount
-);
+    Refresh_RenderPass *renderPass,
+    Uint32 vertexStart,
+    Uint32 primitiveCount);
 
 /**
  * Draws data using bound graphics state and with draw parameters set from a buffer.
@@ -1399,12 +1365,11 @@ REFRESHAPI void Refresh_DrawPrimitives(
  * \param stride the byte stride between sets of draw parameters
  */
 REFRESHAPI void Refresh_DrawPrimitivesIndirect(
-	Refresh_RenderPass *renderPass,
-	Refresh_Buffer *buffer,
-	Uint32 offsetInBytes,
-	Uint32 drawCount,
-	Uint32 stride
-);
+    Refresh_RenderPass *renderPass,
+    Refresh_Buffer *buffer,
+    Uint32 offsetInBytes,
+    Uint32 drawCount,
+    Uint32 stride);
 
 /**
  * Draws data using bound graphics state with an index buffer enabled
@@ -1423,8 +1388,7 @@ REFRESHAPI void Refresh_DrawIndexedPrimitivesIndirect(
     Refresh_Buffer *buffer,
     Uint32 offsetInBytes,
     Uint32 drawCount,
-    Uint32 stride
-);
+    Uint32 stride);
 
 /**
  * Ends the given render pass.
@@ -1434,8 +1398,7 @@ REFRESHAPI void Refresh_DrawIndexedPrimitivesIndirect(
  * \param renderPass a render pass handle
  */
 REFRESHAPI void Refresh_EndRenderPass(
-	Refresh_RenderPass *renderPass
-);
+    Refresh_RenderPass *renderPass);
 
 /* Compute Pass */
 
@@ -1459,13 +1422,12 @@ REFRESHAPI void Refresh_EndRenderPass(
  *
  * \sa Refresh_EndComputePass
  */
-REFRESHAPI Refresh_ComputePass* Refresh_BeginComputePass(
-	Refresh_CommandBuffer *commandBuffer,
+REFRESHAPI Refresh_ComputePass *Refresh_BeginComputePass(
+    Refresh_CommandBuffer *commandBuffer,
     Refresh_StorageTextureReadWriteBinding *storageTextureBindings,
     Uint32 storageTextureBindingCount,
     Refresh_StorageBufferReadWriteBinding *storageBufferBindings,
-    Uint32 storageBufferBindingCount
-);
+    Uint32 storageBufferBindingCount);
 
 /**
  * Binds a compute pipeline on a command buffer for use in compute dispatch.
@@ -1474,9 +1436,8 @@ REFRESHAPI Refresh_ComputePass* Refresh_BeginComputePass(
  * \param computePipeline a compute pipeline to bind
  */
 REFRESHAPI void Refresh_BindComputePipeline(
-	Refresh_ComputePass *computePass,
-	Refresh_ComputePipeline *computePipeline
-);
+    Refresh_ComputePass *computePass,
+    Refresh_ComputePipeline *computePipeline);
 
 /**
  * Binds storage textures as readonly for use on the compute pipeline.
@@ -1491,8 +1452,7 @@ REFRESHAPI void Refresh_BindComputeStorageTextures(
     Refresh_ComputePass *computePass,
     Uint32 firstSlot,
     Refresh_TextureSlice *storageTextureSlices,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Binds storage buffers as readonly for use on the compute pipeline.
@@ -1507,8 +1467,7 @@ REFRESHAPI void Refresh_BindComputeStorageBuffers(
     Refresh_ComputePass *computePass,
     Uint32 firstSlot,
     Refresh_Buffer **storageBuffers,
-    Uint32 bindingCount
-);
+    Uint32 bindingCount);
 
 /**
  * Pushes data to a uniform slot on the bound compute pipeline.
@@ -1520,11 +1479,10 @@ REFRESHAPI void Refresh_BindComputeStorageBuffers(
  * \param dataLengthInBytes the length of the data to write
  */
 REFRESHAPI void Refresh_PushComputeUniformData(
-	Refresh_ComputePass *computePass,
-	Uint32 slotIndex,
-	void *data,
-	Uint32 dataLengthInBytes
-);
+    Refresh_ComputePass *computePass,
+    Uint32 slotIndex,
+    void *data,
+    Uint32 dataLengthInBytes);
 
 /**
  * Dispatches compute work.
@@ -1542,11 +1500,10 @@ REFRESHAPI void Refresh_PushComputeUniformData(
  * \param groupCountZ number of local workgroups to dispatch in the Z dimension
  */
 REFRESHAPI void Refresh_DispatchCompute(
-	Refresh_ComputePass *computePass,
-	Uint32 groupCountX,
-	Uint32 groupCountY,
-	Uint32 groupCountZ
-);
+    Refresh_ComputePass *computePass,
+    Uint32 groupCountX,
+    Uint32 groupCountY,
+    Uint32 groupCountZ);
 
 /**
  * Ends the current compute pass.
@@ -1556,8 +1513,7 @@ REFRESHAPI void Refresh_DispatchCompute(
  * \param computePass a compute pass handle
  */
 REFRESHAPI void Refresh_EndComputePass(
-	Refresh_ComputePass *computePass
-);
+    Refresh_ComputePass *computePass);
 
 /* TransferBuffer Data */
 
@@ -1574,8 +1530,7 @@ REFRESHAPI void Refresh_MapTransferBuffer(
     Refresh_Device *device,
     Refresh_TransferBuffer *transferBuffer,
     SDL_bool cycle,
-    void **ppData
-);
+    void **ppData);
 
 /**
  * Unmaps a previously mapped transfer buffer.
@@ -1585,8 +1540,7 @@ REFRESHAPI void Refresh_MapTransferBuffer(
  */
 REFRESHAPI void Refresh_UnmapTransferBuffer(
     Refresh_Device *device,
-    Refresh_TransferBuffer *transferBuffer
-);
+    Refresh_TransferBuffer *transferBuffer);
 
 /**
  * Immediately copies data from a pointer to a transfer buffer.
@@ -1598,12 +1552,11 @@ REFRESHAPI void Refresh_UnmapTransferBuffer(
  * \param cycle if SDL_TRUE, cycles the transfer buffer if it is bound, otherwise overwrites the data.
  */
 REFRESHAPI void Refresh_SetTransferData(
-	Refresh_Device *device,
-	void* data,
-	Refresh_TransferBuffer *transferBuffer,
-	Refresh_BufferCopy *copyParams,
-	SDL_bool cycle
-);
+    Refresh_Device *device,
+    void *data,
+    Refresh_TransferBuffer *transferBuffer,
+    Refresh_BufferCopy *copyParams,
+    SDL_bool cycle);
 
 /**
  * Immediately copies data from a transfer buffer to a pointer.
@@ -1614,11 +1567,10 @@ REFRESHAPI void Refresh_SetTransferData(
  * \param copyParams a struct containing parameters specifying copy offsets and size
  */
 REFRESHAPI void Refresh_GetTransferData(
-	Refresh_Device *device,
-	Refresh_TransferBuffer *transferBuffer,
-	void* data,
-	Refresh_BufferCopy *copyParams
-);
+    Refresh_Device *device,
+    Refresh_TransferBuffer *transferBuffer,
+    void *data,
+    Refresh_BufferCopy *copyParams);
 
 /* Copy Pass */
 
@@ -1631,9 +1583,8 @@ REFRESHAPI void Refresh_GetTransferData(
  * \param commandBuffer a command buffer
  * \returns a copy pass handle
  */
-REFRESHAPI Refresh_CopyPass* Refresh_BeginCopyPass(
-	Refresh_CommandBuffer *commandBuffer
-);
+REFRESHAPI Refresh_CopyPass *Refresh_BeginCopyPass(
+    Refresh_CommandBuffer *commandBuffer);
 
 /**
  * Uploads data from a transfer buffer to a texture.
@@ -1650,12 +1601,11 @@ REFRESHAPI Refresh_CopyPass* Refresh_BeginCopyPass(
  * \param cycle if SDL_TRUE, cycles the texture if the texture slice is bound, otherwise overwrites the data.
  */
 REFRESHAPI void Refresh_UploadToTexture(
-	Refresh_CopyPass *copyPass,
-	Refresh_TransferBuffer *transferBuffer,
-	Refresh_TextureRegion *textureRegion,
-	Refresh_BufferImageCopy *copyParams,
-	SDL_bool cycle
-);
+    Refresh_CopyPass *copyPass,
+    Refresh_TransferBuffer *transferBuffer,
+    Refresh_TextureRegion *textureRegion,
+    Refresh_BufferImageCopy *copyParams,
+    SDL_bool cycle);
 
 /* Uploads data from a TransferBuffer to a Buffer. */
 
@@ -1671,12 +1621,11 @@ REFRESHAPI void Refresh_UploadToTexture(
  * \param cycle if SDL_TRUE, cycles the buffer if it is bound, otherwise overwrites the data.
  */
 REFRESHAPI void Refresh_UploadToBuffer(
-	Refresh_CopyPass *copyPass,
-	Refresh_TransferBuffer *transferBuffer,
-	Refresh_Buffer *buffer,
-	Refresh_BufferCopy *copyParams,
-	SDL_bool cycle
-);
+    Refresh_CopyPass *copyPass,
+    Refresh_TransferBuffer *transferBuffer,
+    Refresh_Buffer *buffer,
+    Refresh_BufferCopy *copyParams,
+    SDL_bool cycle);
 
 /**
  * Performs a texture-to-texture copy.
@@ -1689,11 +1638,10 @@ REFRESHAPI void Refresh_UploadToBuffer(
  * \param cycle if SDL_TRUE, cycles the destination texture if the destination texture slice is bound, otherwise overwrites the data.
  */
 REFRESHAPI void Refresh_CopyTextureToTexture(
-	Refresh_CopyPass *copyPass,
-	Refresh_TextureRegion *source,
-	Refresh_TextureRegion *destination,
-	SDL_bool cycle
-);
+    Refresh_CopyPass *copyPass,
+    Refresh_TextureRegion *source,
+    Refresh_TextureRegion *destination,
+    SDL_bool cycle);
 
 /* Copies data from a buffer to a buffer. */
 
@@ -1709,12 +1657,11 @@ REFRESHAPI void Refresh_CopyTextureToTexture(
  * \param cycle if SDL_TRUE, cycles the destination buffer if it is bound, otherwise overwrites the data.
  */
 REFRESHAPI void Refresh_CopyBufferToBuffer(
-	Refresh_CopyPass *copyPass,
-	Refresh_Buffer *source,
-	Refresh_Buffer *destination,
-	Refresh_BufferCopy *copyParams,
-	SDL_bool cycle
-);
+    Refresh_CopyPass *copyPass,
+    Refresh_Buffer *source,
+    Refresh_Buffer *destination,
+    Refresh_BufferCopy *copyParams,
+    SDL_bool cycle);
 
 /**
  * Generates mipmaps for the given texture.
@@ -1723,9 +1670,8 @@ REFRESHAPI void Refresh_CopyBufferToBuffer(
  * \param texture a texture with more than 1 mip level
  */
 REFRESHAPI void Refresh_GenerateMipmaps(
-	Refresh_CopyPass *copyPass,
-	Refresh_Texture *texture
-);
+    Refresh_CopyPass *copyPass,
+    Refresh_Texture *texture);
 
 /**
  * Copies data from a texture to a transfer buffer on the GPU timeline.
@@ -1737,11 +1683,10 @@ REFRESHAPI void Refresh_GenerateMipmaps(
  * \param copyParams a struct containing parameters specifying buffer offset, stride, and height
  */
 REFRESHAPI void Refresh_DownloadFromTexture(
-	Refresh_CopyPass *copyPass,
-	Refresh_TextureRegion *textureRegion,
-	Refresh_TransferBuffer *transferBuffer,
-	Refresh_BufferImageCopy *copyParams
-);
+    Refresh_CopyPass *copyPass,
+    Refresh_TextureRegion *textureRegion,
+    Refresh_TransferBuffer *transferBuffer,
+    Refresh_BufferImageCopy *copyParams);
 
 /**
  * Copies data from a buffer to a transfer buffer on the GPU timeline.
@@ -1753,11 +1698,10 @@ REFRESHAPI void Refresh_DownloadFromTexture(
  * \param copyParams a struct containing offsets and length
  */
 REFRESHAPI void Refresh_DownloadFromBuffer(
-	Refresh_CopyPass *copyPass,
-	Refresh_Buffer *buffer,
-	Refresh_TransferBuffer *transferBuffer,
-	Refresh_BufferCopy *copyParams
-);
+    Refresh_CopyPass *copyPass,
+    Refresh_Buffer *buffer,
+    Refresh_TransferBuffer *transferBuffer,
+    Refresh_BufferCopy *copyParams);
 
 /**
  * Ends the current copy pass.
@@ -1765,8 +1709,7 @@ REFRESHAPI void Refresh_DownloadFromBuffer(
  * \param copyPass a copy pass handle
  */
 REFRESHAPI void Refresh_EndCopyPass(
-	Refresh_CopyPass *copyPass
-);
+    Refresh_CopyPass *copyPass);
 
 /**
  * Blits from a source texture region to a destination texture region.
@@ -1783,8 +1726,7 @@ REFRESHAPI void Refresh_Blit(
     Refresh_TextureRegion *source,
     Refresh_TextureRegion *destination,
     Refresh_Filter filterMode,
-    SDL_bool cycle
-);
+    SDL_bool cycle);
 
 /* Submission/Presentation */
 
@@ -1800,8 +1742,7 @@ REFRESHAPI void Refresh_Blit(
 REFRESHAPI SDL_bool Refresh_SupportsSwapchainComposition(
     Refresh_Device *device,
     SDL_Window *window,
-    Refresh_SwapchainComposition swapchainComposition
-);
+    Refresh_SwapchainComposition swapchainComposition);
 
 /**
  * Obtains whether or not a presentation mode is supported by the GPU backend.
@@ -1813,10 +1754,9 @@ REFRESHAPI SDL_bool Refresh_SupportsSwapchainComposition(
  * \returns SDL_TRUE if supported, SDL_FALSE if unsupported (or on error)
  */
 REFRESHAPI SDL_bool Refresh_SupportsPresentMode(
-	Refresh_Device *device,
+    Refresh_Device *device,
     SDL_Window *window,
-	Refresh_PresentMode presentMode
-);
+    Refresh_PresentMode presentMode);
 
 /**
  * Claims a window, creating a swapchain structure for it.
@@ -1833,11 +1773,10 @@ REFRESHAPI SDL_bool Refresh_SupportsPresentMode(
  * \sa Refresh_UnclaimWindow
  */
 REFRESHAPI SDL_bool Refresh_ClaimWindow(
-	Refresh_Device *device,
-	SDL_Window *window,
+    Refresh_Device *device,
+    SDL_Window *window,
     Refresh_SwapchainComposition swapchainComposition,
-	Refresh_PresentMode presentMode
-);
+    Refresh_PresentMode presentMode);
 
 /**
  * Unclaims a window, destroying its swapchain structure.
@@ -1848,9 +1787,8 @@ REFRESHAPI SDL_bool Refresh_ClaimWindow(
  * \sa Refresh_ClaimWindow
  */
 REFRESHAPI void Refresh_UnclaimWindow(
-	Refresh_Device *device,
-	SDL_Window *window
-);
+    Refresh_Device *device,
+    SDL_Window *window);
 
 /**
  * Changes the swapchain parameters for the given claimed window.
@@ -1861,11 +1799,10 @@ REFRESHAPI void Refresh_UnclaimWindow(
  * \param presentMode the desired present mode for the swapchain
  */
 REFRESHAPI void Refresh_SetSwapchainParameters(
-	Refresh_Device *device,
-	SDL_Window *window,
+    Refresh_Device *device,
+    SDL_Window *window,
     Refresh_SwapchainComposition swapchainComposition,
-    Refresh_PresentMode presentMode
-);
+    Refresh_PresentMode presentMode);
 
 /**
  * Obtains the texture format of the swapchain for the given window.
@@ -1876,9 +1813,8 @@ REFRESHAPI void Refresh_SetSwapchainParameters(
  * \returns the texture format of the swapchain
  */
 REFRESHAPI Refresh_TextureFormat Refresh_GetSwapchainTextureFormat(
-	Refresh_Device *device,
-	SDL_Window *window
-);
+    Refresh_Device *device,
+    SDL_Window *window);
 
 /**
  * Acquire a command buffer.
@@ -1891,9 +1827,8 @@ REFRESHAPI Refresh_TextureFormat Refresh_GetSwapchainTextureFormat(
  * \sa Refresh_Submit
  * \sa Refresh_SubmitAndAcquireFence
  */
-REFRESHAPI Refresh_CommandBuffer* Refresh_AcquireCommandBuffer(
-	Refresh_Device *device
-);
+REFRESHAPI Refresh_CommandBuffer *Refresh_AcquireCommandBuffer(
+    Refresh_Device *device);
 
 /**
  * Acquire a texture to use in presentation.
@@ -1913,12 +1848,11 @@ REFRESHAPI Refresh_CommandBuffer* Refresh_AcquireCommandBuffer(
  * \sa Refresh_Submit
  * \sa Refresh_SubmitAndAcquireFence
  */
-REFRESHAPI Refresh_Texture* Refresh_AcquireSwapchainTexture(
-	Refresh_CommandBuffer *commandBuffer,
-	SDL_Window *window,
-	Uint32 *pWidth,
-	Uint32 *pHeight
-);
+REFRESHAPI Refresh_Texture *Refresh_AcquireSwapchainTexture(
+    Refresh_CommandBuffer *commandBuffer,
+    SDL_Window *window,
+    Uint32 *pWidth,
+    Uint32 *pHeight);
 
 /**
  * Submits a command buffer so its commands can be processed on the GPU.
@@ -1931,8 +1865,7 @@ REFRESHAPI Refresh_Texture* Refresh_AcquireSwapchainTexture(
  * \sa Refresh_SubmitAndAcquireFence
  */
 REFRESHAPI void Refresh_Submit(
-	Refresh_CommandBuffer *commandBuffer
-);
+    Refresh_CommandBuffer *commandBuffer);
 
 /**
  * Submits a command buffer so its commands can be processed on the GPU,
@@ -1948,9 +1881,8 @@ REFRESHAPI void Refresh_Submit(
  * \sa Refresh_Submit
  * \sa Refresh_ReleaseFence
  */
-REFRESHAPI Refresh_Fence* Refresh_SubmitAndAcquireFence(
-	Refresh_CommandBuffer *commandBuffer
-);
+REFRESHAPI Refresh_Fence *Refresh_SubmitAndAcquireFence(
+    Refresh_CommandBuffer *commandBuffer);
 
 /**
  * Blocks the thread until the GPU is completely idle.
@@ -1960,8 +1892,7 @@ REFRESHAPI Refresh_Fence* Refresh_SubmitAndAcquireFence(
  * \sa Refresh_WaitForFences
  */
 REFRESHAPI void Refresh_Wait(
-	Refresh_Device *device
-);
+    Refresh_Device *device);
 
 /**
  * Blocks the thread until the given fences are signaled.
@@ -1975,11 +1906,10 @@ REFRESHAPI void Refresh_Wait(
  * \sa Refresh_Wait
  */
 REFRESHAPI void Refresh_WaitForFences(
-	Refresh_Device *device,
-	SDL_bool waitAll,
-	Refresh_Fence **pFences,
-	Uint32 fenceCount
-);
+    Refresh_Device *device,
+    SDL_bool waitAll,
+    Refresh_Fence **pFences,
+    Uint32 fenceCount);
 
 /**
  * Checks the status of a fence.
@@ -1991,9 +1921,8 @@ REFRESHAPI void Refresh_WaitForFences(
  * \sa Refresh_SubmitAndAcquireFence
  */
 REFRESHAPI SDL_bool Refresh_QueryFence(
-	Refresh_Device *device,
-	Refresh_Fence *fence
-);
+    Refresh_Device *device,
+    Refresh_Fence *fence);
 
 /**
  * Releases a fence obtained from Refresh_SubmitAndAcquireFence.
@@ -2004,9 +1933,8 @@ REFRESHAPI SDL_bool Refresh_QueryFence(
  * \sa Refresh_SubmitAndAcquireFence
  */
 REFRESHAPI void Refresh_ReleaseFence(
-	Refresh_Device *device,
-	Refresh_Fence *fence
-);
+    Refresh_Device *device,
+    Refresh_Fence *fence);
 
 /* Format Info */
 
@@ -2020,8 +1948,7 @@ REFRESHAPI void Refresh_ReleaseFence(
  * \sa Refresh_UploadToTexture
  */
 REFRESHAPI Uint32 Refresh_TextureFormatTexelBlockSize(
-    Refresh_TextureFormat textureFormat
-);
+    Refresh_TextureFormat textureFormat);
 
 /**
  * Determines whether a texture format is supported for a given type and usage.
@@ -2036,8 +1963,7 @@ REFRESHAPI SDL_bool Refresh_IsTextureFormatSupported(
     Refresh_Device *device,
     Refresh_TextureFormat format,
     Refresh_TextureType type,
-    Refresh_TextureUsageFlags usage
-);
+    Refresh_TextureUsageFlags usage);
 
 /**
  * Determines the "best" sample count for a texture format, i.e.
@@ -2051,8 +1977,7 @@ REFRESHAPI SDL_bool Refresh_IsTextureFormatSupported(
 REFRESHAPI Refresh_SampleCount Refresh_GetBestSampleCount(
     Refresh_Device *device,
     Refresh_TextureFormat format,
-    Refresh_SampleCount desiredSampleCount
-);
+    Refresh_SampleCount desiredSampleCount);
 
 #ifdef __cplusplus
 }

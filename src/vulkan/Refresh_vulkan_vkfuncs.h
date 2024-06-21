@@ -62,7 +62,7 @@ VULKAN_INSTANCE_FUNCTION(BaseVK, VkResult, vkGetPhysicalDeviceSurfaceSupportKHR,
 
 /* Optional debug feature, used by SetStringMarker */
 VULKAN_INSTANCE_FUNCTION(VK_EXT_debug_utils, void, vkCmdInsertDebugUtilsLabelEXT, (VkCommandBuffer commandBuffer, const VkDebugUtilsLabelEXT *pMarkerInfo))
-VULKAN_INSTANCE_FUNCTION(VK_EXT_debug_utils, void, vkSetDebugUtilsObjectNameEXT, (VkDevice device, const VkDebugUtilsObjectNameInfoEXT* pNameInfo))
+VULKAN_INSTANCE_FUNCTION(VK_EXT_debug_utils, void, vkSetDebugUtilsObjectNameEXT, (VkDevice device, const VkDebugUtilsObjectNameInfoEXT *pNameInfo))
 
 /*
  * vkDevice, created by a vkInstance
@@ -87,10 +87,10 @@ VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdBlitImage, (VkCommandBuffer commandBuf
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdClearAttachments, (VkCommandBuffer commandBuffer, Uint32 attachmentCount, const VkClearAttachment *pAttachments, Uint32 rectCount, const VkClearRect *pRects))
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdClearColorImage, (VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearColorValue *pColor, Uint32 rangeCount, const VkImageSubresourceRange *pRanges))
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdClearDepthStencilImage, (VkCommandBuffer commandBuffer, VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue *pDepthStencil, Uint32 rangeCount, const VkImageSubresourceRange *pRanges))
-VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdCopyBuffer, (VkCommandBuffer commandBuffer, VkBuffer srcBuffer, VkBuffer dstBuffer, Uint32 regionCount, const VkBufferCopy* pRegions))
+VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdCopyBuffer, (VkCommandBuffer commandBuffer, VkBuffer srcBuffer, VkBuffer dstBuffer, Uint32 regionCount, const VkBufferCopy *pRegions))
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdCopyBufferToImage, (VkCommandBuffer commandBuffer, VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, Uint32 regionCount, const VkBufferImageCopy *pRegions))
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdCopyImageToBuffer, (VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, Uint32 regionCount, const VkBufferImageCopy *pRegions))
-VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdCopyImage, (VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, Uint32 regionCount, const VkImageCopy* pRegions))
+VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdCopyImage, (VkCommandBuffer commandBuffer, VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, Uint32 regionCount, const VkImageCopy *pRegions))
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdDispatch, (VkCommandBuffer commandBuffer, Uint32 groupCountX, Uint32 groupCountY, Uint32 groupCountZ))
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdDraw, (VkCommandBuffer commandBuffer, Uint32 vertexCount, Uint32 instanceCount, Uint32 firstVertex, Uint32 firstInstance))
 VULKAN_DEVICE_FUNCTION(BaseVK, void, vkCmdDrawIndexed, (VkCommandBuffer commandBuffer, Uint32 indexCount, Uint32 instanceCount, Uint32 firstIndex, Sint32 vertexOffset, Uint32 firstInstance))

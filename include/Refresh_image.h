@@ -30,7 +30,7 @@
 #include <SDL_stdinc.h>
 
 #ifdef _WIN32
-#define REFRESHAPI __declspec(dllexport)
+#define REFRESHAPI  __declspec(dllexport)
 #define REFRESHCALL __cdecl
 #else
 #define REFRESHAPI
@@ -54,13 +54,12 @@ extern "C" {
  * Returns a block of memory suitable for use with Refresh_SetTextureData2D.
  * Be sure to free the memory with Refresh_Image_Free after use!
  */
-REFRESHAPI uint8_t* Refresh_Image_Load(
-	uint8_t *bufferPtr,
-	int32_t bufferLength,
-	int32_t *w,
-	int32_t *h,
-	int32_t *len
-);
+REFRESHAPI uint8_t *Refresh_Image_Load(
+    uint8_t *bufferPtr,
+    int32_t bufferLength,
+    int32_t *w,
+    int32_t *h,
+    int32_t *len);
 
 /* Get image dimensions without fully decoding the image.
  *
@@ -69,12 +68,11 @@ REFRESHAPI uint8_t* Refresh_Image_Load(
  * len:			Filled with the length of pixel data in bytes.
  */
 REFRESHAPI SDL_bool Refresh_Image_Info(
-	uint8_t *bufferPtr,
-	int32_t bufferLength,
-	int32_t *w,
-	int32_t *h,
-	int32_t *len
-);
+    uint8_t *bufferPtr,
+    int32_t bufferLength,
+    int32_t *w,
+    int32_t *h,
+    int32_t *len);
 
 /* Frees memory returned by Refresh_Image_Load. Do NOT free the memory yourself!
  *
@@ -92,11 +90,10 @@ REFRESHAPI void Refresh_Image_Free(uint8_t *mem);
  * len:		Filled with the length of PNG data in bytes.
  */
 REFRESHAPI void Refresh_Image_SavePNG(
-	const char* filename,
-	uint8_t* data,
-	int32_t w,
-	int32_t h
-);
+    const char *filename,
+    uint8_t *data,
+    int32_t w,
+    int32_t h);
 
 #ifdef __cplusplus
 }
