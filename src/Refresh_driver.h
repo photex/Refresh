@@ -191,7 +191,8 @@ static inline Sint32 BytesPerImage(
 #define MAX_TEXTURE_SAMPLERS_PER_STAGE 16
 #define MAX_STORAGE_TEXTURES_PER_STAGE 8
 #define MAX_STORAGE_BUFFERS_PER_STAGE  8
-#define MAX_UNIFORM_BUFFERS_PER_STAGE  14
+#define MAX_UNIFORM_BUFFERS_PER_STAGE  4
+#define UNIFORM_BUFFER_SIZE            32768
 #define MAX_BUFFER_BINDINGS            16
 #define MAX_COLOR_TARGET_BINDINGS      4
 #define MAX_PRESENT_COUNT              16
@@ -542,7 +543,7 @@ struct Refresh_Device
         Refresh_Renderer *driverData,
         SDL_Window *window);
 
-    void (*SetSwapchainParameters)(
+    SDL_bool (*SetSwapchainParameters)(
         Refresh_Renderer *driverData,
         SDL_Window *window,
         Refresh_SwapchainComposition swapchainComposition,

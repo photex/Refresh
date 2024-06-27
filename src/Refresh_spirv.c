@@ -1,4 +1,4 @@
-﻿/* Refresh - a cross-platform hardware-accelerated graphics library with modern capabilities
+/* Refresh - a cross-platform hardware-accelerated graphics library with modern capabilities
  *
  * Copyright (c) 2020-2024 Evan Hemsley
  *

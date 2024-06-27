@@ -1159,6 +1159,107 @@ REFRESHAPI void Refresh_ReleaseGraphicsPipeline(
     Refresh_GraphicsPipeline *graphicsPipeline);
 
 /*
+ * COMMAND BUFFERS
+ *
+ * Render state is managed via command buffers.
+ * When setting render state, that state is always local to the command buffer.
+ *
+ * Commands only begin execution on the GPU once Submit is called.
+ * Once the command buffer is submitted, it is no longer valid to use it.
+ *
+ * In multi-threading scenarios, you should acquire and submit a command buffer on the same thread.
+ * As long as you satisfy this requirement, all functionality related to command buffers is thread-safe.
+ */
+
+/**
+ * Acquire a command buffer.
+ * This command buffer is managed by the implementation and should not be freed by the user.
+ * The command buffer may only be used on the thread it was acquired on.
+ * The command buffer should be submitted on the thread it was acquired on.
+ *
+ * \param device a GPU context
+ * \returns a command buffer
+ *
+ * \since This function is available since Refresh 2.0.0
+ *
+ * \sa Refresh_Submit
+ * \sa Refresh_SubmitAndAcquireFence
+ */
+REFRESHAPI Refresh_CommandBuffer *Refresh_AcquireCommandBuffer(
+    Refresh_Device *device);
+
+/*
+ * UNIFORM DATA
+ *
+ * Uniforms are for passing data to shaders.
+ * The uniform data will be constant across all executions of the shader.
+ *
+ * There are 4 available uniform slots per shader stage (vertex, fragment, compute).
+ * Uniform data pushed to a slot on a stage keeps its value throughout the command buffer
+ * until you call the relevant Push function on that slot again.
+ *
+ * For example, you could write your vertex shaders to read a camera matrix from uniform binding slot 0,
+ * push the camera matrix at the start of the command buffer, and that data will be used for every
+ * subsequent draw call.
+ *
+ * It is valid to push uniform data during a render or compute pass.
+ *
+ * Uniforms are best for pushing small amounts of data.
+ * If you are pushing more than a matrix or two per call you should consider using a storage buffer instead.
+ */
+
+/**
+ * Pushes data to a vertex uniform slot on the command buffer.
+ * Subsequent draw calls will use this uniform data.
+ *
+ * \param commandBuffer a command buffer
+ * \param slotIndex the vertex uniform slot to push data to
+ * \param data client data to write
+ * \param dataLengthInBytes the length of the data to write
+ *
+ * \since This function is available since Refresh 2.0.0
+ */
+REFRESHAPI void Refresh_PushVertexUniformData(
+    Refresh_CommandBuffer *commandBuffer,
+    Uint32 slotIndex,
+    const void *data,
+    Uint32 dataLengthInBytes);
+
+/**
+ * Pushes data to a fragment uniform slot on the command buffer.
+ * Subsequent draw calls will use this uniform data.
+ *
+ * \param commandBuffer a command buffer
+ * \param slotIndex the fragment uniform slot to push data to
+ * \param data client data to write
+ * \param dataLengthInBytes the length of the data to write
+ *
+ * \since This function is available since Refresh 2.0.0
+ */
+REFRESHAPI void Refresh_PushFragmentUniformData(
+    Refresh_CommandBuffer *commandBuffer,
+    Uint32 slotIndex,
+    const void *data,
+    Uint32 dataLengthInBytes);
+
+/**
+ * Pushes data to a uniform slot on the command buffer.
+ * Subsequent draw calls will use this uniform data.
+ *
+ * \param commandBuffer a command buffer
+ * \param slotIndex the uniform slot to push data to
+ * \param data client data to write
+ * \param dataLengthInBytes the length of the data to write
+ *
+ * \since This function is available since Refresh 2.0.0
+ */
+REFRESHAPI void Refresh_PushComputeUniformData(
+    Refresh_CommandBuffer *commandBuffer,
+    Uint32 slotIndex,
+    const void *data,
+    Uint32 dataLengthInBytes);
+
+/*
  * A NOTE ON CYCLING
  *
  * When using a command buffer, operations do not occur immediately -
@@ -1392,40 +1493,6 @@ REFRESHAPI void Refresh_BindFragmentStorageBuffers(
     Refresh_Buffer **storageBuffers,
     Uint32 bindingCount);
 
-/**
- * Pushes data to a vertex uniform slot on the bound graphics pipeline.
- * Subsequent draw calls will use this uniform data.
- *
- * \param renderPass a render pass handle
- * \param slotIndex the vertex uniform slot to push data to
- * \param data client data to write
- * \param dataLengthInBytes the length of the data to write
- *
- * \since This function is available since Refresh 2.0.0
- */
-REFRESHAPI void Refresh_PushVertexUniformData(
-    Refresh_RenderPass *renderPass,
-    Uint32 slotIndex,
-    const void *data,
-    Uint32 dataLengthInBytes);
-
-/**
- * Pushes data to a fragment uniform slot on the bound graphics pipeline.
- * Subsequent draw calls will use this uniform data.
- *
- * \param renderPass a render pass handle
- * \param slotIndex the fragment uniform slot to push data to
- * \param data client data to write
- * \param dataLengthInBytes the length of the data to write
- *
- * \since This function is available since Refresh 2.0.0
- */
-REFRESHAPI void Refresh_PushFragmentUniformData(
-    Refresh_RenderPass *renderPass,
-    Uint32 slotIndex,
-    const void *data,
-    Uint32 dataLengthInBytes);
-
 /* Drawing */
 
 /**
@@ -1591,23 +1658,6 @@ REFRESHAPI void Refresh_BindComputeStorageBuffers(
     Uint32 firstSlot,
     Refresh_Buffer **storageBuffers,
     Uint32 bindingCount);
-
-/**
- * Pushes data to a uniform slot on the bound compute pipeline.
- * Subsequent draw calls will use this uniform data.
- *
- * \param computePass a compute pass handle
- * \param slotIndex the uniform slot to push data to
- * \param data client data to write
- * \param dataLengthInBytes the length of the data to write
- *
- * \since This function is available since Refresh 2.0.0
- */
-REFRESHAPI void Refresh_PushComputeUniformData(
-    Refresh_ComputePass *computePass,
-    Uint32 slotIndex,
-    const void *data,
-    Uint32 dataLengthInBytes);
 
 /**
  * Dispatches compute work.
@@ -1918,6 +1968,14 @@ REFRESHAPI SDL_bool Refresh_SupportsPresentMode(
  * Claims a window, creating a swapchain structure for it.
  * This must be called before Refresh_AcquireSwapchainTexture is called using the window.
  *
+ * This function will fail if the requested present mode or swapchain composition
+ * are unsupported by the device. Check if the parameters are supported via
+ * Refresh_SupportsPresentMode / Refresh_SupportsSwapchainComposition prior to
+ * calling this function.
+ *
+ * REFRESH_PRESENTMODE_VSYNC and REFRESH_SWAPCHAINCOMPOSITION_SDR are
+ * always supported.
+ *
  * \param device a GPU context
  * \param window an SDL_Window
  * \param swapchainComposition the desired composition of the swapchain
@@ -1929,6 +1987,8 @@ REFRESHAPI SDL_bool Refresh_SupportsPresentMode(
  *
  * \sa Refresh_AcquireSwapchainTexture
  * \sa Refresh_UnclaimWindow
+ * \sa Refresh_SupportsPresentMode
+ * \sa Refresh_SupportsSwapchainComposition
  */
 REFRESHAPI SDL_bool Refresh_ClaimWindow(
     Refresh_Device *device,
@@ -1953,14 +2013,26 @@ REFRESHAPI void Refresh_UnclaimWindow(
 /**
  * Changes the swapchain parameters for the given claimed window.
  *
+ * This function will fail if the requested present mode or swapchain composition
+ * are unsupported by the device. Check if the parameters are supported via
+ * Refresh_SupportsPresentMode / Refresh_SupportsSwapchainComposition prior to
+ * calling this function.
+ *
+ * REFRESH_PRESENTMODE_VSYNC and REFRESH_SWAPCHAINCOMPOSITION_SDR are
+ * always supported.
+ *
  * \param device a GPU context
  * \param window an SDL_Window that has been claimed
  * \param swapchainComposition the desired composition of the swapchain
  * \param presentMode the desired present mode for the swapchain
+ * \returns SDL_TRUE if successful, SDL_FALSE on error
  *
  * \since This function is available since Refresh 2.0.0
+ *
+ * \sa Refresh_SupportsPresentMode
+ * \sa Refresh_SupportsSwapchainComposition
  */
-REFRESHAPI void Refresh_SetSwapchainParameters(
+REFRESHAPI SDL_bool Refresh_SetSwapchainParameters(
     Refresh_Device *device,
     SDL_Window *window,
     Refresh_SwapchainComposition swapchainComposition,
@@ -1979,23 +2051,6 @@ REFRESHAPI void Refresh_SetSwapchainParameters(
 REFRESHAPI Refresh_TextureFormat Refresh_GetSwapchainTextureFormat(
     Refresh_Device *device,
     SDL_Window *window);
-
-/**
- * Acquire a command buffer.
- * This command buffer is managed by the implementation and should not be freed by the user.
- * The command buffer may only be used on the thread it was acquired on.
- * The command buffer should be submitted on the thread it was acquired on.
- *
- * \param device a GPU context
- * \returns a command buffer
- *
- * \since This function is available since Refresh 2.0.0
- *
- * \sa Refresh_Submit
- * \sa Refresh_SubmitAndAcquireFence
- */
-REFRESHAPI Refresh_CommandBuffer *Refresh_AcquireCommandBuffer(
-    Refresh_Device *device);
 
 /**
  * Acquire a texture to use in presentation.
