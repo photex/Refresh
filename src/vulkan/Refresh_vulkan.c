@@ -2488,8 +2488,7 @@ static void VULKAN_INTERNAL_TrackUniformBuffer(
     VulkanUniformBuffer *uniformBuffer)
 {
     Uint32 i;
-    for (i = 0; i < commandBuffer->usedUniformBufferCount; i += 1)
-    {
+    for (i = 0; i < commandBuffer->usedUniformBufferCount; i += 1) {
         if (commandBuffer->usedUniformBuffers[i] == uniformBuffer) {
             return;
         }
@@ -2499,7 +2498,7 @@ static void VULKAN_INTERNAL_TrackUniformBuffer(
         commandBuffer->usedUniformBufferCapacity += 1;
         commandBuffer->usedUniformBuffers = SDL_realloc(
             commandBuffer->usedUniformBuffers,
-            commandBuffer->usedUniformBufferCapacity * sizeof(VulkanUniformBuffer*));
+            commandBuffer->usedUniformBufferCapacity * sizeof(VulkanUniformBuffer *));
     }
     commandBuffer->usedUniformBuffers[commandBuffer->usedUniformBufferCount] = uniformBuffer;
     commandBuffer->usedUniformBufferCount += 1;
@@ -4615,8 +4614,7 @@ static void VULKAN_DestroyDevice(
     for (i = 0; i < renderer->uniformBufferPoolCount; i += 1) {
         VULKAN_INTERNAL_DestroyBuffer(
             renderer,
-            renderer->uniformBufferPool[i]->bufferHandle->vulkanBuffer
-        );
+            renderer->uniformBufferPool[i]->bufferHandle->vulkanBuffer);
         SDL_free(renderer->uniformBufferPool[i]->bufferHandle);
         SDL_free(renderer->uniformBufferPool[i]);
     }
@@ -7419,7 +7417,7 @@ static void VULKAN_BindFragmentStorageBuffers(
     vulkanCommandBuffer->needNewFragmentResourceDescriptorSet = SDL_TRUE;
 }
 
-static VulkanUniformBuffer* VULKAN_INTERNAL_AcquireUniformBufferFromPool(
+static VulkanUniformBuffer *VULKAN_INTERNAL_AcquireUniformBufferFromPool(
     VulkanRenderer *renderer)
 {
     VulkanUniformBuffer *uniformBuffer;
@@ -7444,12 +7442,11 @@ static void VULKAN_INTERNAL_ReturnUniformBufferToPool(
     VulkanRenderer *renderer,
     VulkanUniformBuffer *uniformBuffer)
 {
-    if (renderer->uniformBufferPoolCount >= renderer->uniformBufferPoolCapacity)
-    {
+    if (renderer->uniformBufferPoolCount >= renderer->uniformBufferPoolCapacity) {
         renderer->uniformBufferPoolCapacity *= 2;
         renderer->uniformBufferPool = SDL_realloc(
             renderer->uniformBufferPool,
-            renderer->uniformBufferPoolCapacity * sizeof(VulkanUniformBuffer*));
+            renderer->uniformBufferPoolCapacity * sizeof(VulkanUniformBuffer *));
     }
 
     renderer->uniformBufferPool[renderer->uniformBufferPoolCount] = uniformBuffer;
@@ -7807,7 +7804,7 @@ static void VULKAN_BindGraphicsPipeline(
 
     /* Acquire uniform buffers if necessary */
     for (Uint32 i = 0; i < pipeline->resourceLayout.vertexUniformBufferCount; i += 1) {
-        if (vulkanCommandBuffer->vertexUniformBuffers[i] == NULL ) {
+        if (vulkanCommandBuffer->vertexUniformBuffers[i] == NULL) {
             vulkanCommandBuffer->vertexUniformBuffers[i] = VULKAN_INTERNAL_AcquireUniformBufferFromPool(
                 vulkanCommandBuffer->renderer);
         }
@@ -9163,7 +9160,7 @@ static void VULKAN_INTERNAL_AllocateCommandBuffers(
         commandBuffer->usedUniformBufferCapacity = 4;
         commandBuffer->usedUniformBufferCount = 0;
         commandBuffer->usedUniformBuffers = SDL_malloc(
-            commandBuffer->usedUniformBufferCapacity * sizeof(VulkanUniformBuffer*));
+            commandBuffer->usedUniformBufferCapacity * sizeof(VulkanUniformBuffer *));
 
         /* Pool it! */
 
@@ -9287,8 +9284,7 @@ static Refresh_CommandBuffer *VULKAN_AcquireCommandBuffer(
         commandBuffer->colorAttachmentSlices[i] = NULL;
     }
 
-    for (i = 0; i < MAX_UNIFORM_BUFFERS_PER_STAGE; i += 1)
-    {
+    for (i = 0; i < MAX_UNIFORM_BUFFERS_PER_STAGE; i += 1) {
         commandBuffer->vertexUniformBuffers[i] = NULL;
         commandBuffer->fragmentUniformBuffers[i] = NULL;
         commandBuffer->computeUniformBuffers[i] = NULL;
@@ -9425,6 +9421,7 @@ static SDL_bool VULKAN_SupportsSwapchainComposition(
     if (windowData == NULL || windowData->swapchainData == NULL) {
         /* Create a dummy surface is the window is not claimed */
         destroySurface = SDL_TRUE;
+        
         if (!SDL_Vulkan_CreateSurface(
                 window,
                 renderer->instance,
@@ -9479,6 +9476,7 @@ static SDL_bool VULKAN_SupportsPresentMode(
     if (windowData == NULL || windowData->swapchainData == NULL) {
         /* Create a dummy surface is the window is not claimed */
         destroySurface = SDL_TRUE;
+        
         if (!SDL_Vulkan_CreateSurface(
                 window,
                 renderer->instance,
@@ -11547,11 +11545,9 @@ static Refresh_Device *VULKAN_CreateDevice(SDL_bool debugMode)
     renderer->uniformBufferPoolCount = 32;
     renderer->uniformBufferPoolCapacity = 32;
     renderer->uniformBufferPool = SDL_malloc(
-        renderer->uniformBufferPoolCapacity * sizeof(VulkanUniformBuffer*)
-    );
+        renderer->uniformBufferPoolCapacity * sizeof(VulkanUniformBuffer *));
 
-    for (i = 0; i < renderer->uniformBufferPoolCount; i += 1)
-    {
+    for (i = 0; i < renderer->uniformBufferPoolCount; i += 1) {
         renderer->uniformBufferPool[i] = VULKAN_INTERNAL_CreateUniformBuffer(
             renderer,
             UNIFORM_BUFFER_SIZE);
