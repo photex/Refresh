@@ -124,10 +124,18 @@ typedef struct VulkanExtensions
 
 /* Conversions */
 
-static const Uint8 DEVICE_PRIORITY[] = {
+static const Uint8 DEVICE_PRIORITY_HIGHPERFORMANCE[] = {
     0, /* VK_PHYSICAL_DEVICE_TYPE_OTHER */
     3, /* VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU */
     4, /* VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU */
+    2, /* VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU */
+    1  /* VK_PHYSICAL_DEVICE_TYPE_CPU */
+};
+
+static const Uint8 DEVICE_PRIORITY_LOWPOWER[] = {
+    0, /* VK_PHYSICAL_DEVICE_TYPE_OTHER */
+    4, /* VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU */
+    3, /* VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU */
     2, /* VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU */
     1  /* VK_PHYSICAL_DEVICE_TYPE_CPU */
 };
@@ -141,11 +149,10 @@ static VkPresentModeKHR RefreshToVK_PresentMode[] = {
 static VkFormat RefreshToVK_SurfaceFormat[] = {
     VK_FORMAT_R8G8B8A8_UNORM,           /* R8G8B8A8 */
     VK_FORMAT_B8G8R8A8_UNORM,           /* B8G8R8A8 */
-    VK_FORMAT_R5G6B5_UNORM_PACK16,      /* R5G6B5 */
-    VK_FORMAT_A1R5G5B5_UNORM_PACK16,    /* A1R5G5B5 */
+    VK_FORMAT_R5G6B5_UNORM_PACK16,      /* B5G6R5 */
+    VK_FORMAT_A1R5G5B5_UNORM_PACK16,    /* B5G5R5A1 */
     VK_FORMAT_B4G4R4A4_UNORM_PACK16,    /* B4G4R4A4 */
-    VK_FORMAT_A2R10G10B10_UNORM_PACK32, /* A2R10G10B10 */
-    VK_FORMAT_A2B10G10R10_UNORM_PACK32, /* A2R10G10B10 */
+    VK_FORMAT_A2B10G10R10_UNORM_PACK32, /* R10G10B10A2 */
     VK_FORMAT_R16G16_UNORM,             /* R16G16 */
     VK_FORMAT_R16G16B16A16_UNORM,       /* R16G16B16A16 */
     VK_FORMAT_R8_UNORM,                 /* R8 */
@@ -179,12 +186,76 @@ static VkFormat RefreshToVK_SurfaceFormat[] = {
     VK_FORMAT_D32_SFLOAT_S8_UINT,       /* D32_SFLOAT_S8_UINT */
 };
 
+static VkComponentMapping RefreshToVK_SurfaceSwizzle[] = {
+    IDENTITY_SWIZZLE, /* R8G8B8A8 */
+    IDENTITY_SWIZZLE, /* B8G8R8A8 */
+    {
+        /* B5G6R5 */
+        VK_COMPONENT_SWIZZLE_B,
+        VK_COMPONENT_SWIZZLE_G,
+        VK_COMPONENT_SWIZZLE_R,
+        VK_COMPONENT_SWIZZLE_ONE,
+    },
+    {
+        /* B5G5R5A1 */
+        VK_COMPONENT_SWIZZLE_B,
+        VK_COMPONENT_SWIZZLE_G,
+        VK_COMPONENT_SWIZZLE_R,
+        VK_COMPONENT_SWIZZLE_A,
+    },
+    IDENTITY_SWIZZLE, /* B4G4R4A4 */
+    {
+        /* R10G10B10A2 */
+        VK_COMPONENT_SWIZZLE_R,
+        VK_COMPONENT_SWIZZLE_G,
+        VK_COMPONENT_SWIZZLE_B,
+        VK_COMPONENT_SWIZZLE_A,
+    },
+    IDENTITY_SWIZZLE, /* R16G16 */
+    IDENTITY_SWIZZLE, /* R16G16B16A16 */
+    IDENTITY_SWIZZLE, /* R8 */
+    {
+        /* A8 */
+        VK_COMPONENT_SWIZZLE_ZERO,
+        VK_COMPONENT_SWIZZLE_ZERO,
+        VK_COMPONENT_SWIZZLE_ZERO,
+        VK_COMPONENT_SWIZZLE_R,
+    },
+    IDENTITY_SWIZZLE, /* BC1 */
+    IDENTITY_SWIZZLE, /* BC2 */
+    IDENTITY_SWIZZLE, /* BC3 */
+    IDENTITY_SWIZZLE, /* BC7 */
+    IDENTITY_SWIZZLE, /* R8G8_SNORM */
+    IDENTITY_SWIZZLE, /* R8G8B8A8_SNORM */
+    IDENTITY_SWIZZLE, /* R16_SFLOAT */
+    IDENTITY_SWIZZLE, /* R16G16_SFLOAT */
+    IDENTITY_SWIZZLE, /* R16G16B16A16_SFLOAT */
+    IDENTITY_SWIZZLE, /* R32_SFLOAT */
+    IDENTITY_SWIZZLE, /* R32G32_SFLOAT */
+    IDENTITY_SWIZZLE, /* R32G32B32A32_SFLOAT */
+    IDENTITY_SWIZZLE, /* R8_UINT */
+    IDENTITY_SWIZZLE, /* R8G8_UINT */
+    IDENTITY_SWIZZLE, /* R8G8B8A8_UINT */
+    IDENTITY_SWIZZLE, /* R16_UINT */
+    IDENTITY_SWIZZLE, /* R16G16_UINT */
+    IDENTITY_SWIZZLE, /* R16G16B16A16_UINT */
+    IDENTITY_SWIZZLE, /* R8G8B8A8_SRGB */
+    IDENTITY_SWIZZLE, /* B8G8R8A8_SRGB */
+    IDENTITY_SWIZZLE, /* BC3_SRGB */
+    IDENTITY_SWIZZLE, /* BC7_SRGB */
+    IDENTITY_SWIZZLE, /* D16_UNORM */
+    IDENTITY_SWIZZLE, /* D24_UNORM */
+    IDENTITY_SWIZZLE, /* D32_SFLOAT */
+    IDENTITY_SWIZZLE, /* D24_UNORM_S8_UINT */
+    IDENTITY_SWIZZLE, /* D32_SFLOAT_S8_UINT */
+};
+
 /* from SWAPCHAINCOMPOSITION */
 static VkFormat SwapchainCompositionToFormat[] = {
     VK_FORMAT_B8G8R8A8_UNORM,          /* SDR */
     VK_FORMAT_B8G8R8A8_SRGB,           /* SDR_SRGB */
     VK_FORMAT_R16G16B16A16_SFLOAT,     /* HDR */
-    VK_FORMAT_A2B10G10R10_UNORM_PACK32 /* HDR_ADVANCED*/
+    VK_FORMAT_A2B10G10R10_UNORM_PACK32 /* HDR_ADVANCED */
 };
 
 /* from SWAPCHAINCOMPOSITION */
@@ -193,6 +264,19 @@ static VkColorSpaceKHR SwapchainCompositionToColorSpace[] = {
     VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
     VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
     VK_COLOR_SPACE_HDR10_ST2084_EXT
+};
+
+static VkComponentMapping SwapchainCompositionSwizzle[] = {
+    IDENTITY_SWIZZLE, /* SDR */
+    IDENTITY_SWIZZLE, /* SDR_SRGB */
+    IDENTITY_SWIZZLE, /* HDR */
+    {
+        /* HDR_ADVANCED */
+        VK_COMPONENT_SWIZZLE_R,
+        VK_COMPONENT_SWIZZLE_G,
+        VK_COMPONENT_SWIZZLE_B,
+        VK_COMPONENT_SWIZZLE_A,
+    }
 };
 
 static VkFormat RefreshToVK_VertexFormat[] = {
@@ -1212,6 +1296,7 @@ struct VulkanRenderer
     Uint8 outofBARMemoryWarning;
 
     SDL_bool debugMode;
+    SDL_bool preferLowPower;
     VulkanExtensions supports;
     SDL_bool supportsDebugUtils;
     SDL_bool supportsColorspace;
@@ -1398,30 +1483,6 @@ static inline VkSampleCountFlagBits VULKAN_INTERNAL_GetMaxMultiSampleCount(
     }
 
     return SDL_min(multiSampleCount, maxSupported);
-}
-
-static inline SDL_bool BGRToRGBSwapchainFormat(
-    VkFormat format,
-    VkFormat *outputFormat)
-{
-    switch (format) {
-    case VK_FORMAT_B8G8R8A8_UNORM:
-        *outputFormat = VK_FORMAT_R8G8B8A8_UNORM;
-        return SDL_TRUE;
-
-    case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
-        *outputFormat = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-        return SDL_TRUE;
-
-    case VK_FORMAT_B8G8R8A8_SRGB:
-        *outputFormat = VK_FORMAT_R8G8B8A8_SRGB;
-        return SDL_TRUE;
-
-    default:
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No valid fallback equivalent for this format exists!");
-        *outputFormat = VK_FORMAT_R8G8B8A8_UNORM;
-        return SDL_FALSE;
-    }
 }
 
 /* Memory Management */
@@ -4236,42 +4297,27 @@ static SDL_bool VULKAN_INTERNAL_CreateSwapchain(
 
     swapchainData->format = SwapchainCompositionToFormat[windowData->swapchainComposition];
     swapchainData->colorSpace = SwapchainCompositionToColorSpace[windowData->swapchainComposition];
-    swapchainData->swapchainSwizzle.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    swapchainData->swapchainSwizzle.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    swapchainData->swapchainSwizzle.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    swapchainData->swapchainSwizzle.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    swapchainData->swapchainSwizzle = SwapchainCompositionSwizzle[windowData->swapchainComposition];
 
     if (!VULKAN_INTERNAL_VerifySwapSurfaceFormat(
             swapchainData->format,
             swapchainData->colorSpace,
             swapchainSupportDetails.formats,
             swapchainSupportDetails.formatsLength)) {
-        if (!BGRToRGBSwapchainFormat(
-                swapchainData->format,
-                &swapchainData->format)) {
-            renderer->vkDestroySurfaceKHR(
-                renderer->instance,
-                swapchainData->surface,
-                NULL);
 
-            if (swapchainSupportDetails.formatsLength > 0) {
-                SDL_free(swapchainSupportDetails.formats);
-            }
-
-            if (swapchainSupportDetails.presentModesLength > 0) {
-                SDL_free(swapchainSupportDetails.presentModes);
-            }
-
-            SDL_free(swapchainData);
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Device does not support requested colorspace!");
-            return SDL_FALSE;
+        /* Try an RGB format instead? */
+        VkFormat oldFormat = swapchainData->format;
+        if (oldFormat == VK_FORMAT_B8G8R8A8_UNORM) {
+            swapchainData->format = VK_FORMAT_R8G8B8A8_UNORM;
+        } else if (oldFormat == VK_FORMAT_B8G8R8A8_SRGB) {
+            swapchainData->format = VK_FORMAT_R8G8B8A8_SRGB;
         }
 
-        if (!VULKAN_INTERNAL_VerifySwapSurfaceFormat(
-                swapchainData->format,
-                swapchainData->colorSpace,
-                swapchainSupportDetails.formats,
-                swapchainSupportDetails.formatsLength)) {
+        if (oldFormat == swapchainData->format || !VULKAN_INTERNAL_VerifySwapSurfaceFormat(
+                                                      swapchainData->format,
+                                                      swapchainData->colorSpace,
+                                                      swapchainSupportDetails.formats,
+                                                      swapchainSupportDetails.formatsLength)) {
             renderer->vkDestroySurfaceKHR(
                 renderer->instance,
                 swapchainData->surface,
@@ -4932,10 +4978,6 @@ static void VULKAN_INTERNAL_BindGraphicsDescriptorSets(
             currentWriteDescriptorSet->pBufferInfo = &bufferInfos[bufferInfoCount];
 
             bufferInfoCount += 1;
-
-            VULKAN_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->vertexUniformBuffers[i]);
         }
 
         renderer->vkUpdateDescriptorSets(
@@ -5106,10 +5148,6 @@ static void VULKAN_INTERNAL_BindGraphicsDescriptorSets(
             currentWriteDescriptorSet->pBufferInfo = &bufferInfos[bufferInfoCount];
 
             bufferInfoCount += 1;
-
-            VULKAN_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->fragmentUniformBuffers[i]);
         }
 
         renderer->vkUpdateDescriptorSets(
@@ -6687,23 +6725,16 @@ static Refresh_Texture *VULKAN_CreateTexture(
     VkImageAspectFlags imageAspectFlags;
     Uint8 isDepthFormat = IsDepthFormat(textureCreateInfo->format);
     VkFormat format;
+    VkComponentMapping swizzle;
     VulkanTextureContainer *container;
     VulkanTextureHandle *textureHandle;
-    VkComponentMapping swizzle = IDENTITY_SWIZZLE;
     Refresh_SampleCount actualSampleCount = VULKAN_GetBestSampleCount(
         driverData,
         textureCreateInfo->format,
         textureCreateInfo->sampleCount);
 
     format = RefreshToVK_SurfaceFormat[textureCreateInfo->format];
-
-    /* FIXME: We probably need a swizzle table like FNA3D Vulkan does */
-    if (textureCreateInfo->format == REFRESH_TEXTUREFORMAT_A8) {
-        swizzle.r = VK_COMPONENT_SWIZZLE_ZERO;
-        swizzle.g = VK_COMPONENT_SWIZZLE_ZERO;
-        swizzle.b = VK_COMPONENT_SWIZZLE_ZERO;
-        swizzle.a = VK_COMPONENT_SWIZZLE_R;
-    }
+    swizzle = RefreshToVK_SurfaceSwizzle[textureCreateInfo->format];
 
     if (isDepthFormat) {
         imageAspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -7418,8 +7449,9 @@ static void VULKAN_BindFragmentStorageBuffers(
 }
 
 static VulkanUniformBuffer *VULKAN_INTERNAL_AcquireUniformBufferFromPool(
-    VulkanRenderer *renderer)
+    VulkanCommandBuffer *commandBuffer)
 {
+    VulkanRenderer *renderer = commandBuffer->renderer;
     VulkanUniformBuffer *uniformBuffer;
 
     SDL_LockMutex(renderer->acquireUniformBufferLock);
@@ -7434,6 +7466,8 @@ static VulkanUniformBuffer *VULKAN_INTERNAL_AcquireUniformBufferFromPool(
     }
 
     SDL_UnlockMutex(renderer->acquireUniformBufferLock);
+
+    VULKAN_INTERNAL_TrackUniformBuffer(commandBuffer, uniformBuffer);
 
     return uniformBuffer;
 }
@@ -7473,19 +7507,19 @@ static void VULKAN_INTERNAL_PushUniformData(
     if (uniformBufferStage == VULKAN_UNIFORM_BUFFER_STAGE_VERTEX) {
         if (commandBuffer->vertexUniformBuffers[slotIndex] == NULL) {
             commandBuffer->vertexUniformBuffers[slotIndex] = VULKAN_INTERNAL_AcquireUniformBufferFromPool(
-                commandBuffer->renderer);
+                commandBuffer);
         }
         uniformBuffer = commandBuffer->vertexUniformBuffers[slotIndex];
     } else if (uniformBufferStage == VULKAN_UNIFORM_BUFFER_STAGE_FRAGMENT) {
         if (commandBuffer->fragmentUniformBuffers[slotIndex] == NULL) {
             commandBuffer->fragmentUniformBuffers[slotIndex] = VULKAN_INTERNAL_AcquireUniformBufferFromPool(
-                commandBuffer->renderer);
+                commandBuffer);
         }
         uniformBuffer = commandBuffer->fragmentUniformBuffers[slotIndex];
     } else if (uniformBufferStage == VULKAN_UNIFORM_BUFFER_STAGE_COMPUTE) {
         if (commandBuffer->computeUniformBuffers[slotIndex] == NULL) {
             commandBuffer->computeUniformBuffers[slotIndex] = VULKAN_INTERNAL_AcquireUniformBufferFromPool(
-                commandBuffer->renderer);
+                commandBuffer);
         }
         uniformBuffer = commandBuffer->computeUniformBuffers[slotIndex];
     } else {
@@ -7495,11 +7529,7 @@ static void VULKAN_INTERNAL_PushUniformData(
 
     /* If there is no more room, acquire a new uniform buffer */
     if (uniformBuffer->writeOffset + blockSize + MAX_UBO_SECTION_SIZE >= uniformBuffer->bufferHandle->vulkanBuffer->size) {
-        VULKAN_INTERNAL_TrackUniformBuffer(
-            commandBuffer,
-            uniformBuffer);
-
-        uniformBuffer = VULKAN_INTERNAL_AcquireUniformBufferFromPool(commandBuffer->renderer);
+        uniformBuffer = VULKAN_INTERNAL_AcquireUniformBufferFromPool(commandBuffer);
 
         uniformBuffer->drawOffset = 0;
         uniformBuffer->writeOffset = 0;
@@ -7806,14 +7836,14 @@ static void VULKAN_BindGraphicsPipeline(
     for (Uint32 i = 0; i < pipeline->resourceLayout.vertexUniformBufferCount; i += 1) {
         if (vulkanCommandBuffer->vertexUniformBuffers[i] == NULL) {
             vulkanCommandBuffer->vertexUniformBuffers[i] = VULKAN_INTERNAL_AcquireUniformBufferFromPool(
-                vulkanCommandBuffer->renderer);
+                vulkanCommandBuffer);
         }
     }
 
     for (Uint32 i = 0; i < pipeline->resourceLayout.fragmentUniformBufferCount; i += 1) {
         if (vulkanCommandBuffer->fragmentUniformBuffers[i] == NULL) {
             vulkanCommandBuffer->fragmentUniformBuffers[i] = VULKAN_INTERNAL_AcquireUniformBufferFromPool(
-                vulkanCommandBuffer->renderer);
+                vulkanCommandBuffer);
         }
     }
 
@@ -8014,7 +8044,7 @@ static void VULKAN_BindComputePipeline(
     for (Uint32 i = 0; i < vulkanComputePipeline->resourceLayout.uniformBufferCount; i += 1) {
         if (vulkanCommandBuffer->computeUniformBuffers[i] == NULL) {
             vulkanCommandBuffer->computeUniformBuffers[i] = VULKAN_INTERNAL_AcquireUniformBufferFromPool(
-                vulkanCommandBuffer->renderer);
+                vulkanCommandBuffer);
         }
     }
 
@@ -8332,10 +8362,6 @@ static void VULKAN_INTERNAL_BindComputeDescriptorSets(
             currentWriteDescriptorSet->pBufferInfo = &bufferInfos[bufferInfoCount];
 
             bufferInfoCount += 1;
-
-            VULKAN_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->computeUniformBuffers[i]);
         }
 
         renderer->vkUpdateDescriptorSets(
@@ -8966,6 +8992,11 @@ static void VULKAN_Blit(
     VulkanRenderer *renderer = (VulkanRenderer *)vulkanCommandBuffer->renderer;
     VulkanTextureContainer *sourceTextureContainer = (VulkanTextureContainer *)source->textureSlice.texture;
     VkImageBlit region;
+
+    if ((sourceTextureContainer->activeTextureHandle->vulkanTexture->usageFlags & REFRESH_TEXTUREUSAGE_SAMPLER_BIT) == 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Blit source texture must be created with SAMPLER bit!");
+        return;
+    }
 
     VulkanTextureSlice *srcTextureSlice = VULKAN_INTERNAL_FetchTextureSlice(
         sourceTextureContainer->activeTextureHandle->vulkanTexture,
@@ -9824,11 +9855,8 @@ static Refresh_TextureFormat VULKAN_GetSwapchainTextureFormat(
     case VK_FORMAT_R16G16B16A16_SFLOAT:
         return REFRESH_TEXTUREFORMAT_R16G16B16A16_SFLOAT;
 
-    case VK_FORMAT_A2R10G10B10_UNORM_PACK32:
-        return REFRESH_TEXTUREFORMAT_A2R10G10B10;
-
     case VK_FORMAT_A2B10G10R10_UNORM_PACK32:
-        return REFRESH_TEXTUREFORMAT_A2B10G10R10;
+        return REFRESH_TEXTUREFORMAT_R10G10B10A2;
 
     default:
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unrecognized swapchain format!");
@@ -10963,6 +10991,8 @@ static Uint8 VULKAN_INTERNAL_IsDeviceSuitable(
     VkPhysicalDeviceProperties deviceProperties;
     Uint32 i;
 
+    const Uint8 *devicePriority = renderer->preferLowPower ? DEVICE_PRIORITY_LOWPOWER : DEVICE_PRIORITY_HIGHPERFORMANCE;
+
     /* Get the device rank before doing any checks, in case one fails.
      * Note: If no dedicated device exists, one that supports our features
      * would be fine
@@ -10970,14 +11000,14 @@ static Uint8 VULKAN_INTERNAL_IsDeviceSuitable(
     renderer->vkGetPhysicalDeviceProperties(
         physicalDevice,
         &deviceProperties);
-    if (*deviceRank < DEVICE_PRIORITY[deviceProperties.deviceType]) {
+    if (*deviceRank < devicePriority[deviceProperties.deviceType]) {
         /* This device outranks the best device we've found so far!
          * This includes a dedicated GPU that has less features than an
          * integrated GPU, because this is a freak case that is almost
          * never intentionally desired by the end user
          */
-        *deviceRank = DEVICE_PRIORITY[deviceProperties.deviceType];
-    } else if (*deviceRank > DEVICE_PRIORITY[deviceProperties.deviceType]) {
+        *deviceRank = devicePriority[deviceProperties.deviceType];
+    } else if (*deviceRank > devicePriority[deviceProperties.deviceType]) {
         /* Device is outranked by a previous device, don't even try to
          * run a query and reset the rank to avoid overwrites
          */
@@ -11437,7 +11467,7 @@ static SDL_bool VULKAN_PrepareDriver()
     return result;
 }
 
-static Refresh_Device *VULKAN_CreateDevice(SDL_bool debugMode)
+static Refresh_Device *VULKAN_CreateDevice(SDL_bool debugMode, SDL_bool preferLowPower)
 {
     VulkanRenderer *renderer;
 
@@ -11459,6 +11489,7 @@ static Refresh_Device *VULKAN_CreateDevice(SDL_bool debugMode)
     renderer = (VulkanRenderer *)SDL_malloc(sizeof(VulkanRenderer));
     SDL_memset(renderer, '\0', sizeof(VulkanRenderer));
     renderer->debugMode = debugMode;
+    renderer->preferLowPower = preferLowPower;
 
     if (!VULKAN_INTERNAL_PrepareVulkan(renderer)) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize Vulkan!");

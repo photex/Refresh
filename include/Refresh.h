@@ -97,14 +97,15 @@ typedef enum Refresh_IndexElementSize
 
 typedef enum Refresh_TextureFormat
 {
+    REFRESH_TEXTUREFORMAT_INVALID = -1,
+
     /* Unsigned Normalized Float Color Formats */
     REFRESH_TEXTUREFORMAT_R8G8B8A8,
     REFRESH_TEXTUREFORMAT_B8G8R8A8,
-    REFRESH_TEXTUREFORMAT_R5G6B5,
-    REFRESH_TEXTUREFORMAT_A1R5G5B5,
+    REFRESH_TEXTUREFORMAT_B5G6R5,
+    REFRESH_TEXTUREFORMAT_B5G5R5A1,
     REFRESH_TEXTUREFORMAT_B4G4R4A4,
-    REFRESH_TEXTUREFORMAT_A2R10G10B10,
-    REFRESH_TEXTUREFORMAT_A2B10G10R10,
+    REFRESH_TEXTUREFORMAT_R10G10B10A2,
     REFRESH_TEXTUREFORMAT_R16G16,
     REFRESH_TEXTUREFORMAT_R16G16B16A16,
     REFRESH_TEXTUREFORMAT_R8,
@@ -808,6 +809,7 @@ typedef struct Refresh_StorageTextureReadWriteBinding
  *
  * \param preferredBackends a bitflag containing the renderers most recognized by the application
  * \param debugMode enable debug mode properties and validations
+ * \param preferLowPower set this to SDL_TRUE if your app prefers energy efficiency over maximum GPU performance
  * \returns a GPU context on success or NULL on failure
  *
  * \since This function is available since Refresh 2.0.0
@@ -817,7 +819,8 @@ typedef struct Refresh_StorageTextureReadWriteBinding
  */
 REFRESHAPI Refresh_Device *Refresh_CreateDevice(
     Refresh_Backend preferredBackends,
-    SDL_bool debugMode);
+    SDL_bool debugMode,
+    SDL_bool preferLowPower);
 
 /**
  * Destroys a GPU context previously returned by Refresh_CreateDevice.
@@ -846,6 +849,26 @@ REFRESHAPI Refresh_Backend Refresh_GetBackend(Refresh_Device *device);
 
 /**
  * Creates a pipeline object to be used in a compute workflow.
+ *
+ * Shader resource bindings must be authored to follow a particular order.
+ * For SPIR-V shaders, use the following resource sets:
+ *  0: Read-only storage textures, followed by read-only storage buffers
+ *  1: Read-write storage textures, followed by read-write storage buffers
+ *  2: Uniform buffers
+ *
+ * For HLSL/DXBC/DXIL, use the following order:
+ *  For t registers:
+ *   Read-only storage textures, followed by read-only storage buffers
+ *  For b registers:
+ *   Uniform buffers
+ *  For u registers:
+ *   Read-write storage textures, followed by read-write storage buffers
+ *
+ * For MSL/metallib, use the following order:
+ *  For [[buffer]]:
+ *   Uniform buffers, followed by read-only storage buffers, followed by read-write storage buffers
+ *  For [[texture]]:
+ *   Read-only storage textures, followed by read-write storage textures
  *
  * \param device a GPU Context
  * \param computePipelineCreateInfo a struct describing the state of the requested compute pipeline
@@ -896,6 +919,34 @@ REFRESHAPI Refresh_Sampler *Refresh_CreateSampler(
 
 /**
  * Creates a shader to be used when creating a graphics pipeline.
+ *
+ * Shader resource bindings must be authored to follow a particular order.
+ * For SPIR-V shaders, use the following resource sets:
+ *  For vertex shaders:
+ *   0: Sampled textures, followed by storage textures, followed by storage buffers
+ *   1: Uniform buffers
+ *  For fragment shaders:
+ *   2: Sampled textures, followed by storage textures, followed by storage buffers
+ *   3: Uniform buffers
+ *
+ * For HLSL/DXBC/DXIL, use the following order:
+ *  For t registers:
+ *   Sampled textures, followed by storage textures, followed by storage buffers
+ *  For s registers:
+ *   Samplers with indices corresponding to the sampled textures
+ *  For b registers:
+ *   Uniform buffers
+ *
+ * For MSL/metallib, use the following order:
+ *  For [[texture]]:
+ *   Sampled textures, followed by storage textures
+ *  For [[sampler]]:
+ *   Samplers with indices corresponding to the sampled textures
+ *  For [[buffer]]:
+ *   Uniform buffers, followed by storage buffers.
+ *   Vertex buffer 0 is bound at [[buffer(30)]], vertex buffer 1 at [[buffer(29)]], and so on.
+ *    Rather than manually authoring vertex buffer indices, use the [[stage_in]] attribute
+ *    which will automatically use the vertex input information from the Refresh_Pipeline.
  *
  * \param device a GPU Context
  * \param shaderCreateInfo a struct describing the state of the desired shader

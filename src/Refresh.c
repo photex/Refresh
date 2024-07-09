@@ -27,21 +27,22 @@
 #include "Refresh_driver.h"
 #include "Refresh_spirv_c.h"
 
-#define NULL_ASSERT(name) SDL_assert(name != NULL);
+/* FIXME: This could probably use SDL_ObjectValid */
+#define CHECK_DEVICE_MAGIC(device, retval)  \
+    if (device == NULL) {                   \
+        SDL_SetError("Invalid GPU device"); \
+        return retval;                      \
+    }
+
+/* FIXME DEBUGMODE */
 
 #define CHECK_COMMAND_BUFFER                                                             \
-    if (commandBuffer == NULL) {                                                         \
-        return;                                                                          \
-    }                                                                                    \
     if (((CommandBufferCommonHeader *)commandBuffer)->submitted) {                       \
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Command buffer already submitted!"); \
         return;                                                                          \
     }
 
 #define CHECK_COMMAND_BUFFER_RETURN_NULL                                                 \
-    if (commandBuffer == NULL) {                                                         \
-        return NULL;                                                                     \
-    }                                                                                    \
     if (((CommandBufferCommonHeader *)commandBuffer)->submitted) {                       \
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Command buffer already submitted!"); \
         return NULL;                                                                     \
@@ -164,7 +165,8 @@ static Refresh_Backend Refresh_SelectBackend(Refresh_Backend preferredBackends)
 
 Refresh_Device *Refresh_CreateDevice(
     Refresh_Backend preferredBackends,
-    SDL_bool debugMode)
+    SDL_bool debugMode,
+    SDL_bool preferLowPower)
 {
     int i;
     Refresh_Device *result = NULL;
@@ -174,7 +176,7 @@ Refresh_Device *Refresh_CreateDevice(
     if (selectedBackend != REFRESH_BACKEND_INVALID) {
         for (i = 0; backends[i]; i += 1) {
             if (backends[i]->backendflag == selectedBackend) {
-                result = backends[i]->CreateDevice(debugMode);
+                result = backends[i]->CreateDevice(debugMode, preferLowPower);
                 if (result != NULL) {
                     result->backend = backends[i]->backendflag;
                     break;
@@ -187,15 +189,15 @@ Refresh_Device *Refresh_CreateDevice(
 
 void Refresh_DestroyDevice(Refresh_Device *device)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+
     device->DestroyDevice(device);
 }
 
 Refresh_Backend Refresh_GetBackend(Refresh_Device *device)
 {
-    if (device == NULL) {
-        return REFRESH_BACKEND_INVALID;
-    }
+    CHECK_DEVICE_MAGIC(device, REFRESH_BACKEND_INVALID);
+
     return device->backend;
 }
 
@@ -215,9 +217,9 @@ Uint32 Refresh_TextureFormatTexelBlockSize(
     case REFRESH_TEXTUREFORMAT_A8:
     case REFRESH_TEXTUREFORMAT_R8_UINT:
         return 1;
-    case REFRESH_TEXTUREFORMAT_R5G6B5:
+    case REFRESH_TEXTUREFORMAT_B5G6R5:
     case REFRESH_TEXTUREFORMAT_B4G4R4A4:
-    case REFRESH_TEXTUREFORMAT_A1R5G5B5:
+    case REFRESH_TEXTUREFORMAT_B5G5R5A1:
     case REFRESH_TEXTUREFORMAT_R16_SFLOAT:
     case REFRESH_TEXTUREFORMAT_R8G8_SNORM:
     case REFRESH_TEXTUREFORMAT_R8G8_UINT:
@@ -230,7 +232,7 @@ Uint32 Refresh_TextureFormatTexelBlockSize(
     case REFRESH_TEXTUREFORMAT_R32_SFLOAT:
     case REFRESH_TEXTUREFORMAT_R16G16_SFLOAT:
     case REFRESH_TEXTUREFORMAT_R8G8B8A8_SNORM:
-    case REFRESH_TEXTUREFORMAT_A2R10G10B10:
+    case REFRESH_TEXTUREFORMAT_R10G10B10A2:
     case REFRESH_TEXTUREFORMAT_R8G8B8A8_UINT:
     case REFRESH_TEXTUREFORMAT_R16G16_UINT:
         return 4;
@@ -242,6 +244,7 @@ Uint32 Refresh_TextureFormatTexelBlockSize(
     case REFRESH_TEXTUREFORMAT_R32G32B32A32_SFLOAT:
         return 16;
     default:
+        /* FIXME DEBUGMODE */
         SDL_LogError(
             SDL_LOG_CATEGORY_APPLICATION,
             "Unrecognized TextureFormat!");
@@ -255,9 +258,8 @@ SDL_bool Refresh_IsTextureFormatSupported(
     Refresh_TextureType type,
     Refresh_TextureUsageFlags usage)
 {
-    if (device == NULL) {
-        return SDL_FALSE;
-    }
+    CHECK_DEVICE_MAGIC(device, SDL_FALSE);
+
     return device->IsTextureFormatSupported(
         device->driverData,
         format,
@@ -270,9 +272,8 @@ Refresh_SampleCount Refresh_GetBestSampleCount(
     Refresh_TextureFormat format,
     Refresh_SampleCount desiredSampleCount)
 {
-    if (device == NULL) {
-        return 0;
-    }
+    CHECK_DEVICE_MAGIC(device, 0);
+
     return device->GetBestSampleCount(
         device->driverData,
         format,
@@ -285,13 +286,20 @@ Refresh_ComputePipeline *Refresh_CreateComputePipeline(
     Refresh_Device *device,
     Refresh_ComputePipelineCreateInfo *computePipelineCreateInfo)
 {
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, NULL);
+    if (computePipelineCreateInfo == NULL) {
+        SDL_InvalidParamError("computePipelineCreateInfo");
+        return NULL;
+    }
+
+    /* FIXME DEBUGMODE */
     if (computePipelineCreateInfo->threadCountX == 0 ||
         computePipelineCreateInfo->threadCountY == 0 ||
         computePipelineCreateInfo->threadCountZ == 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "All ComputePipeline threadCount dimensions must be at least 1!");
         return NULL;
     }
+
     if (computePipelineCreateInfo->format == REFRESH_SHADERFORMAT_SPIRV &&
         device->backend != REFRESH_BACKEND_VULKAN) {
         return SDL_CompileFromSPIRV(device, computePipelineCreateInfo, SDL_TRUE);
@@ -307,7 +315,11 @@ Refresh_GraphicsPipeline *Refresh_CreateGraphicsPipeline(
 {
     Refresh_TextureFormat newFormat;
 
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, NULL);
+    if (graphicsPipelineCreateInfo == NULL) {
+        SDL_InvalidParamError("graphicsPipelineCreateInfo");
+        return NULL;
+    }
 
     /* Automatically swap out the depth format if it's unsupported.
      * See Refresh_CreateTexture.
@@ -355,7 +367,12 @@ Refresh_Sampler *Refresh_CreateSampler(
     Refresh_Device *device,
     Refresh_SamplerCreateInfo *samplerCreateInfo)
 {
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, NULL);
+    if (samplerCreateInfo == NULL) {
+        SDL_InvalidParamError("samplerCreateInfo");
+        return NULL;
+    }
+
     return device->CreateSampler(
         device->driverData,
         samplerCreateInfo);
@@ -365,7 +382,12 @@ Refresh_Shader *Refresh_CreateShader(
     Refresh_Device *device,
     Refresh_ShaderCreateInfo *shaderCreateInfo)
 {
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, NULL);
+    if (shaderCreateInfo == NULL) {
+        SDL_InvalidParamError("shaderCreateInfo");
+        return NULL;
+    }
+
     if (shaderCreateInfo->format == REFRESH_SHADERFORMAT_SPIRV &&
         device->backend != REFRESH_BACKEND_VULKAN) {
         return SDL_CompileFromSPIRV(device, shaderCreateInfo, SDL_FALSE);
@@ -381,7 +403,11 @@ Refresh_Texture *Refresh_CreateTexture(
 {
     Refresh_TextureFormat newFormat;
 
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, NULL);
+    if (textureCreateInfo == NULL) {
+        SDL_InvalidParamError("textureCreateInfo");
+        return NULL;
+    }
 
     /* Automatically swap out the depth format if it's unsupported.
      * All backends have universal support for D16.
@@ -434,7 +460,8 @@ Refresh_Buffer *Refresh_CreateBuffer(
     Refresh_BufferUsageFlags usageFlags,
     Uint32 sizeInBytes)
 {
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, NULL);
+
     return device->CreateBuffer(
         device->driverData,
         usageFlags,
@@ -446,7 +473,8 @@ Refresh_TransferBuffer *Refresh_CreateTransferBuffer(
     Refresh_TransferBufferUsage usage,
     Uint32 sizeInBytes)
 {
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, NULL);
+
     return device->CreateTransferBuffer(
         device->driverData,
         usage,
@@ -460,8 +488,14 @@ void Refresh_SetBufferName(
     Refresh_Buffer *buffer,
     const char *text)
 {
-    NULL_ASSERT(device)
-    NULL_ASSERT(buffer)
+    CHECK_DEVICE_MAGIC(device, );
+    if (buffer == NULL) {
+        SDL_InvalidParamError("buffer");
+        return;
+    }
+    if (text == NULL) {
+        SDL_InvalidParamError("text");
+    }
 
     device->SetBufferName(
         device->driverData,
@@ -474,8 +508,14 @@ void Refresh_SetTextureName(
     Refresh_Texture *texture,
     const char *text)
 {
-    NULL_ASSERT(device)
-    NULL_ASSERT(texture)
+    CHECK_DEVICE_MAGIC(device, );
+    if (texture == NULL) {
+        SDL_InvalidParamError("texture");
+        return;
+    }
+    if (text == NULL) {
+        SDL_InvalidParamError("text");
+    }
 
     device->SetTextureName(
         device->driverData,
@@ -487,6 +527,15 @@ void Refresh_InsertDebugLabel(
     Refresh_CommandBuffer *commandBuffer,
     const char *text)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+    if (text == NULL) {
+        SDL_InvalidParamError("text");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     COMMAND_BUFFER_DEVICE->InsertDebugLabel(
         commandBuffer,
@@ -497,6 +546,15 @@ void Refresh_PushDebugGroup(
     Refresh_CommandBuffer *commandBuffer,
     const char *name)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+    if (name == NULL) {
+        SDL_InvalidParamError("name");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     COMMAND_BUFFER_DEVICE->PushDebugGroup(
         commandBuffer,
@@ -506,6 +564,11 @@ void Refresh_PushDebugGroup(
 void Refresh_PopDebugGroup(
     Refresh_CommandBuffer *commandBuffer)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     COMMAND_BUFFER_DEVICE->PopDebugGroup(
         commandBuffer);
@@ -517,7 +580,11 @@ void Refresh_ReleaseTexture(
     Refresh_Device *device,
     Refresh_Texture *texture)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (texture == NULL) {
+        return;
+    }
+
     device->ReleaseTexture(
         device->driverData,
         texture);
@@ -527,7 +594,11 @@ void Refresh_ReleaseSampler(
     Refresh_Device *device,
     Refresh_Sampler *sampler)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (sampler == NULL) {
+        return;
+    }
+
     device->ReleaseSampler(
         device->driverData,
         sampler);
@@ -537,7 +608,11 @@ void Refresh_ReleaseBuffer(
     Refresh_Device *device,
     Refresh_Buffer *buffer)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (buffer == NULL) {
+        return;
+    }
+
     device->ReleaseBuffer(
         device->driverData,
         buffer);
@@ -547,7 +622,11 @@ void Refresh_ReleaseTransferBuffer(
     Refresh_Device *device,
     Refresh_TransferBuffer *transferBuffer)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (transferBuffer == NULL) {
+        return;
+    }
+
     device->ReleaseTransferBuffer(
         device->driverData,
         transferBuffer);
@@ -557,7 +636,11 @@ void Refresh_ReleaseShader(
     Refresh_Device *device,
     Refresh_Shader *shader)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (shader == NULL) {
+        return;
+    }
+
     device->ReleaseShader(
         device->driverData,
         shader);
@@ -567,7 +650,11 @@ void Refresh_ReleaseComputePipeline(
     Refresh_Device *device,
     Refresh_ComputePipeline *computePipeline)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (computePipeline == NULL) {
+        return;
+    }
+
     device->ReleaseComputePipeline(
         device->driverData,
         computePipeline);
@@ -577,7 +664,11 @@ void Refresh_ReleaseGraphicsPipeline(
     Refresh_Device *device,
     Refresh_GraphicsPipeline *graphicsPipeline)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (graphicsPipeline == NULL) {
+        return;
+    }
+
     device->ReleaseGraphicsPipeline(
         device->driverData,
         graphicsPipeline);
@@ -590,7 +681,8 @@ Refresh_CommandBuffer *Refresh_AcquireCommandBuffer(
 {
     Refresh_CommandBuffer *commandBuffer;
     CommandBufferCommonHeader *commandBufferHeader;
-    NULL_ASSERT(device);
+
+    CHECK_DEVICE_MAGIC(device, NULL);
 
     commandBuffer = device->AcquireCommandBuffer(
         device->driverData);
@@ -622,6 +714,15 @@ void Refresh_PushVertexUniformData(
     const void *data,
     Uint32 dataLengthInBytes)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+    if (data == NULL) {
+        SDL_InvalidParamError("data");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     COMMAND_BUFFER_DEVICE->PushVertexUniformData(
         commandBuffer,
@@ -636,6 +737,15 @@ void Refresh_PushFragmentUniformData(
     const void *data,
     Uint32 dataLengthInBytes)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+    if (data == NULL) {
+        SDL_InvalidParamError("data");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     COMMAND_BUFFER_DEVICE->PushFragmentUniformData(
         commandBuffer,
@@ -650,6 +760,15 @@ void Refresh_PushComputeUniformData(
     const void *data,
     Uint32 dataLengthInBytes)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+    if (data == NULL) {
+        SDL_InvalidParamError("data");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     COMMAND_BUFFER_DEVICE->PushComputeUniformData(
         commandBuffer,
@@ -668,8 +787,18 @@ Refresh_RenderPass *Refresh_BeginRenderPass(
 {
     CommandBufferCommonHeader *commandBufferHeader;
 
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return NULL;
+    }
+    if (colorAttachmentInfos == NULL && colorAttachmentCount > 0) {
+        SDL_InvalidParamError("colorAttachmentInfos");
+        return NULL;
+    }
+
     CHECK_COMMAND_BUFFER_RETURN_NULL
     CHECK_ANY_PASS_IN_PROGRESS
+
     COMMAND_BUFFER_DEVICE->BeginRenderPass(
         commandBuffer,
         colorAttachmentInfos,
@@ -687,7 +816,15 @@ void Refresh_BindGraphicsPipeline(
 {
     CommandBufferCommonHeader *commandBufferHeader;
 
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (graphicsPipeline == NULL) {
+        SDL_InvalidParamError("graphicsPipeline");
+        return;
+    }
+
     RENDERPASS_DEVICE->BindGraphicsPipeline(
         RENDERPASS_COMMAND_BUFFER,
         graphicsPipeline);
@@ -700,7 +837,15 @@ void Refresh_SetViewport(
     Refresh_RenderPass *renderPass,
     Refresh_Viewport *viewport)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (viewport == NULL) {
+        SDL_InvalidParamError("viewport");
+        return;
+    }
+
     CHECK_RENDERPASS
     RENDERPASS_DEVICE->SetViewport(
         RENDERPASS_COMMAND_BUFFER,
@@ -711,7 +856,15 @@ void Refresh_SetScissor(
     Refresh_RenderPass *renderPass,
     Refresh_Rect *scissor)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (scissor == NULL) {
+        SDL_InvalidParamError("scissor");
+        return;
+    }
+
     CHECK_RENDERPASS
     RENDERPASS_DEVICE->SetScissor(
         RENDERPASS_COMMAND_BUFFER,
@@ -724,7 +877,15 @@ void Refresh_BindVertexBuffers(
     Refresh_BufferBinding *pBindings,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (pBindings == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("pBindings");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindVertexBuffers(
@@ -739,7 +900,15 @@ void Refresh_BindIndexBuffer(
     Refresh_BufferBinding *pBinding,
     Refresh_IndexElementSize indexElementSize)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (pBinding == NULL) {
+        SDL_InvalidParamError("pBinding");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindIndexBuffer(
@@ -754,7 +923,15 @@ void Refresh_BindVertexSamplers(
     Refresh_TextureSamplerBinding *textureSamplerBindings,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (textureSamplerBindings == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("textureSamplerBindings");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindVertexSamplers(
@@ -770,7 +947,15 @@ void Refresh_BindVertexStorageTextures(
     Refresh_TextureSlice *storageTextureSlices,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (storageTextureSlices == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("storageTextureSlices");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindVertexStorageTextures(
@@ -786,7 +971,15 @@ void Refresh_BindVertexStorageBuffers(
     Refresh_Buffer **storageBuffers,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (storageBuffers == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("storageBuffers");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindVertexStorageBuffers(
@@ -802,7 +995,15 @@ void Refresh_BindFragmentSamplers(
     Refresh_TextureSamplerBinding *textureSamplerBindings,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (textureSamplerBindings == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("textureSamplerBindings");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindFragmentSamplers(
@@ -818,7 +1019,15 @@ void Refresh_BindFragmentStorageTextures(
     Refresh_TextureSlice *storageTextureSlices,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (storageTextureSlices == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("storageTextureSlices");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindFragmentStorageTextures(
@@ -834,7 +1043,15 @@ void Refresh_BindFragmentStorageBuffers(
     Refresh_Buffer **storageBuffers,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (storageBuffers == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("storageBuffers");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->BindFragmentStorageBuffers(
@@ -851,7 +1068,11 @@ void Refresh_DrawIndexedPrimitives(
     Uint32 primitiveCount,
     Uint32 instanceCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->DrawIndexedPrimitives(
@@ -867,7 +1088,11 @@ void Refresh_DrawPrimitives(
     Uint32 vertexStart,
     Uint32 primitiveCount)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->DrawPrimitives(
@@ -883,7 +1108,15 @@ void Refresh_DrawPrimitivesIndirect(
     Uint32 drawCount,
     Uint32 stride)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (buffer == NULL) {
+        SDL_InvalidParamError("buffer");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->DrawPrimitivesIndirect(
@@ -901,7 +1134,15 @@ void Refresh_DrawIndexedPrimitivesIndirect(
     Uint32 drawCount,
     Uint32 stride)
 {
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+    if (buffer == NULL) {
+        SDL_InvalidParamError("buffer");
+        return;
+    }
+
     CHECK_RENDERPASS
     CHECK_GRAPHICS_PIPELINE_BOUND
     RENDERPASS_DEVICE->DrawIndexedPrimitivesIndirect(
@@ -917,7 +1158,11 @@ void Refresh_EndRenderPass(
 {
     CommandBufferCommonHeader *commandBufferCommonHeader;
 
-    NULL_ASSERT(renderPass)
+    if (renderPass == NULL) {
+        SDL_InvalidParamError("renderPass");
+        return;
+    }
+
     CHECK_RENDERPASS
     RENDERPASS_DEVICE->EndRenderPass(
         RENDERPASS_COMMAND_BUFFER);
@@ -937,6 +1182,19 @@ Refresh_ComputePass *Refresh_BeginComputePass(
     Uint32 storageBufferBindingCount)
 {
     CommandBufferCommonHeader *commandBufferHeader;
+
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return NULL;
+    }
+    if (storageTextureBindings == NULL && storageTextureBindingCount > 0) {
+        SDL_InvalidParamError("storageTextureBindings");
+        return NULL;
+    }
+    if (storageBufferBindings == NULL && storageBufferBindingCount > 0) {
+        SDL_InvalidParamError("storageBufferBindings");
+        return NULL;
+    }
 
     CHECK_COMMAND_BUFFER_RETURN_NULL
     CHECK_ANY_PASS_IN_PROGRESS
@@ -958,7 +1216,15 @@ void Refresh_BindComputePipeline(
 {
     CommandBufferCommonHeader *commandBufferHeader;
 
-    NULL_ASSERT(computePass)
+    if (computePass == NULL) {
+        SDL_InvalidParamError("computePass");
+        return;
+    }
+    if (computePipeline == NULL) {
+        SDL_InvalidParamError("computePipeline");
+        return;
+    }
+
     CHECK_COMPUTEPASS
     COMPUTEPASS_DEVICE->BindComputePipeline(
         COMPUTEPASS_COMMAND_BUFFER,
@@ -974,7 +1240,15 @@ void Refresh_BindComputeStorageTextures(
     Refresh_TextureSlice *storageTextureSlices,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(computePass)
+    if (computePass == NULL) {
+        SDL_InvalidParamError("computePass");
+        return;
+    }
+    if (storageTextureSlices == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("storageTextureSlices");
+        return;
+    }
+
     CHECK_COMPUTEPASS
     CHECK_COMPUTE_PIPELINE_BOUND
     COMPUTEPASS_DEVICE->BindComputeStorageTextures(
@@ -990,7 +1264,15 @@ void Refresh_BindComputeStorageBuffers(
     Refresh_Buffer **storageBuffers,
     Uint32 bindingCount)
 {
-    NULL_ASSERT(computePass)
+    if (computePass == NULL) {
+        SDL_InvalidParamError("computePass");
+        return;
+    }
+    if (storageBuffers == NULL && bindingCount > 0) {
+        SDL_InvalidParamError("storageBuffers");
+        return;
+    }
+
     CHECK_COMPUTEPASS
     CHECK_COMPUTE_PIPELINE_BOUND
     COMPUTEPASS_DEVICE->BindComputeStorageBuffers(
@@ -1006,7 +1288,11 @@ void Refresh_DispatchCompute(
     Uint32 groupCountY,
     Uint32 groupCountZ)
 {
-    NULL_ASSERT(computePass)
+    if (computePass == NULL) {
+        SDL_InvalidParamError("computePass");
+        return;
+    }
+
     CHECK_COMPUTEPASS
     CHECK_COMPUTE_PIPELINE_BOUND
     COMPUTEPASS_DEVICE->DispatchCompute(
@@ -1021,7 +1307,11 @@ void Refresh_EndComputePass(
 {
     CommandBufferCommonHeader *commandBufferCommonHeader;
 
-    NULL_ASSERT(computePass)
+    if (computePass == NULL) {
+        SDL_InvalidParamError("computePass");
+        return;
+    }
+
     CHECK_COMPUTEPASS
     COMPUTEPASS_DEVICE->EndComputePass(
         COMPUTEPASS_COMMAND_BUFFER);
@@ -1039,8 +1329,16 @@ void Refresh_MapTransferBuffer(
     SDL_bool cycle,
     void **ppData)
 {
-    NULL_ASSERT(device)
-    NULL_ASSERT(transferBuffer)
+    CHECK_DEVICE_MAGIC(device, );
+    if (transferBuffer == NULL) {
+        SDL_InvalidParamError("transferBuffer");
+        return;
+    }
+    if (ppData == NULL) {
+        SDL_InvalidParamError("ppData");
+        return;
+    }
+
     device->MapTransferBuffer(
         device->driverData,
         transferBuffer,
@@ -1052,8 +1350,12 @@ void Refresh_UnmapTransferBuffer(
     Refresh_Device *device,
     Refresh_TransferBuffer *transferBuffer)
 {
-    NULL_ASSERT(device)
-    NULL_ASSERT(transferBuffer)
+    CHECK_DEVICE_MAGIC(device, );
+    if (transferBuffer == NULL) {
+        SDL_InvalidParamError("transferBuffer");
+        return;
+    }
+
     device->UnmapTransferBuffer(
         device->driverData,
         transferBuffer);
@@ -1065,7 +1367,16 @@ void Refresh_SetTransferData(
     Refresh_TransferBufferRegion *destination,
     SDL_bool cycle)
 {
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, );
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     device->SetTransferData(
         device->driverData,
         source,
@@ -1078,7 +1389,16 @@ void Refresh_GetTransferData(
     Refresh_TransferBufferRegion *source,
     void *destination)
 {
-    NULL_ASSERT(device)
+    CHECK_DEVICE_MAGIC(device, );
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     device->GetTransferData(
         device->driverData,
         source,
@@ -1091,6 +1411,11 @@ Refresh_CopyPass *Refresh_BeginCopyPass(
     Refresh_CommandBuffer *commandBuffer)
 {
     CommandBufferCommonHeader *commandBufferHeader;
+
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return NULL;
+    }
 
     CHECK_COMMAND_BUFFER_RETURN_NULL
     CHECK_ANY_PASS_IN_PROGRESS
@@ -1108,7 +1433,19 @@ void Refresh_UploadToTexture(
     Refresh_TextureRegion *destination,
     SDL_bool cycle)
 {
-    NULL_ASSERT(copyPass)
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     CHECK_COPYPASS
     COPYPASS_DEVICE->UploadToTexture(
         COPYPASS_COMMAND_BUFFER,
@@ -1123,7 +1460,19 @@ void Refresh_UploadToBuffer(
     Refresh_BufferRegion *destination,
     SDL_bool cycle)
 {
-    NULL_ASSERT(copyPass)
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     COPYPASS_DEVICE->UploadToBuffer(
         COPYPASS_COMMAND_BUFFER,
         source,
@@ -1140,7 +1489,19 @@ void Refresh_CopyTextureToTexture(
     Uint32 d,
     SDL_bool cycle)
 {
-    NULL_ASSERT(copyPass)
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     COPYPASS_DEVICE->CopyTextureToTexture(
         COPYPASS_COMMAND_BUFFER,
         source,
@@ -1158,7 +1519,19 @@ void Refresh_CopyBufferToBuffer(
     Uint32 size,
     SDL_bool cycle)
 {
-    NULL_ASSERT(copyPass)
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     COPYPASS_DEVICE->CopyBufferToBuffer(
         COPYPASS_COMMAND_BUFFER,
         source,
@@ -1171,7 +1544,15 @@ void Refresh_GenerateMipmaps(
     Refresh_CopyPass *copyPass,
     Refresh_Texture *texture)
 {
-    NULL_ASSERT(copyPass)
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+    if (texture == NULL) {
+        SDL_InvalidParamError("texture");
+        return;
+    }
+
     COPYPASS_DEVICE->GenerateMipmaps(
         COPYPASS_COMMAND_BUFFER,
         texture);
@@ -1182,7 +1563,19 @@ void Refresh_DownloadFromTexture(
     Refresh_TextureRegion *source,
     Refresh_TextureTransferInfo *destination)
 {
-    NULL_ASSERT(copyPass);
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     COPYPASS_DEVICE->DownloadFromTexture(
         COPYPASS_COMMAND_BUFFER,
         source,
@@ -1194,7 +1587,19 @@ void Refresh_DownloadFromBuffer(
     Refresh_BufferRegion *source,
     Refresh_TransferBufferLocation *destination)
 {
-    NULL_ASSERT(copyPass);
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     COPYPASS_DEVICE->DownloadFromBuffer(
         COPYPASS_COMMAND_BUFFER,
         source,
@@ -1204,7 +1609,11 @@ void Refresh_DownloadFromBuffer(
 void Refresh_EndCopyPass(
     Refresh_CopyPass *copyPass)
 {
-    NULL_ASSERT(copyPass)
+    if (copyPass == NULL) {
+        SDL_InvalidParamError("copyPass");
+        return;
+    }
+
     CHECK_COPYPASS
     COPYPASS_DEVICE->EndCopyPass(
         COPYPASS_COMMAND_BUFFER);
@@ -1219,6 +1628,19 @@ void Refresh_Blit(
     Refresh_Filter filterMode,
     SDL_bool cycle)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+    if (source == NULL) {
+        SDL_InvalidParamError("source");
+        return;
+    }
+    if (destination == NULL) {
+        SDL_InvalidParamError("destination");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     COMMAND_BUFFER_DEVICE->Blit(
         commandBuffer,
@@ -1235,9 +1657,12 @@ SDL_bool Refresh_SupportsSwapchainComposition(
     SDL_Window *window,
     Refresh_SwapchainComposition swapchainFormat)
 {
-    if (device == NULL) {
-        return 0;
+    CHECK_DEVICE_MAGIC(device, SDL_FALSE);
+    if (window == NULL) {
+        SDL_InvalidParamError("window");
+        return SDL_FALSE;
     }
+
     return device->SupportsSwapchainComposition(
         device->driverData,
         window,
@@ -1249,9 +1674,12 @@ SDL_bool Refresh_SupportsPresentMode(
     SDL_Window *window,
     Refresh_PresentMode presentMode)
 {
-    if (device == NULL) {
-        return 0;
+    CHECK_DEVICE_MAGIC(device, SDL_FALSE);
+    if (window == NULL) {
+        SDL_InvalidParamError("window");
+        return SDL_FALSE;
     }
+
     return device->SupportsPresentMode(
         device->driverData,
         window,
@@ -1264,9 +1692,12 @@ SDL_bool Refresh_ClaimWindow(
     Refresh_SwapchainComposition swapchainFormat,
     Refresh_PresentMode presentMode)
 {
-    if (device == NULL) {
-        return 0;
+    CHECK_DEVICE_MAGIC(device, SDL_FALSE);
+    if (window == NULL) {
+        SDL_InvalidParamError("window");
+        return SDL_FALSE;
     }
+
     return device->ClaimWindow(
         device->driverData,
         window,
@@ -1278,7 +1709,12 @@ void Refresh_UnclaimWindow(
     Refresh_Device *device,
     SDL_Window *window)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (window == NULL) {
+        SDL_InvalidParamError("window");
+        return;
+    }
+
     device->UnclaimWindow(
         device->driverData,
         window);
@@ -1290,7 +1726,12 @@ SDL_bool Refresh_SetSwapchainParameters(
     Refresh_SwapchainComposition swapchainFormat,
     Refresh_PresentMode presentMode)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, SDL_FALSE);
+    if (window == NULL) {
+        SDL_InvalidParamError("window");
+        return SDL_FALSE;
+    }
+
     return device->SetSwapchainParameters(
         device->driverData,
         window,
@@ -1302,9 +1743,12 @@ Refresh_TextureFormat Refresh_GetSwapchainTextureFormat(
     Refresh_Device *device,
     SDL_Window *window)
 {
-    if (device == NULL) {
-        return 0;
+    CHECK_DEVICE_MAGIC(device, REFRESH_TEXTUREFORMAT_INVALID);
+    if (window == NULL) {
+        SDL_InvalidParamError("window");
+        return REFRESH_TEXTUREFORMAT_INVALID;
     }
+
     return device->GetSwapchainTextureFormat(
         device->driverData,
         window);
@@ -1316,6 +1760,15 @@ Refresh_Texture *Refresh_AcquireSwapchainTexture(
     Uint32 *pWidth,
     Uint32 *pHeight)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return NULL;
+    }
+    if (window == NULL) {
+        SDL_InvalidParamError("window");
+        return NULL;
+    }
+
     CHECK_COMMAND_BUFFER_RETURN_NULL
     return COMMAND_BUFFER_DEVICE->AcquireSwapchainTexture(
         commandBuffer,
@@ -1327,9 +1780,15 @@ Refresh_Texture *Refresh_AcquireSwapchainTexture(
 void Refresh_Submit(
     Refresh_CommandBuffer *commandBuffer)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return;
+    }
+
     CHECK_COMMAND_BUFFER
     CommandBufferCommonHeader *commandBufferHeader = (CommandBufferCommonHeader *)commandBuffer;
 
+    /* FIXME DEBUGMODE */
     if (
         commandBufferHeader->renderPass.inProgress ||
         commandBufferHeader->computePass.inProgress ||
@@ -1347,9 +1806,15 @@ void Refresh_Submit(
 Refresh_Fence *Refresh_SubmitAndAcquireFence(
     Refresh_CommandBuffer *commandBuffer)
 {
+    if (commandBuffer == NULL) {
+        SDL_InvalidParamError("commandBuffer");
+        return NULL;
+    }
+
     CHECK_COMMAND_BUFFER_RETURN_NULL
     CommandBufferCommonHeader *commandBufferHeader = (CommandBufferCommonHeader *)commandBuffer;
 
+    /* FIXME DEBUGMODE */
     if (
         commandBufferHeader->renderPass.inProgress ||
         commandBufferHeader->computePass.inProgress ||
@@ -1367,7 +1832,8 @@ Refresh_Fence *Refresh_SubmitAndAcquireFence(
 void Refresh_Wait(
     Refresh_Device *device)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+
     device->Wait(
         device->driverData);
 }
@@ -1378,7 +1844,12 @@ void Refresh_WaitForFences(
     Refresh_Fence **pFences,
     Uint32 fenceCount)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (pFences == NULL && fenceCount > 0) {
+        SDL_InvalidParamError("pFences");
+        return;
+    }
+
     device->WaitForFences(
         device->driverData,
         waitAll,
@@ -1390,8 +1861,10 @@ SDL_bool Refresh_QueryFence(
     Refresh_Device *device,
     Refresh_Fence *fence)
 {
-    if (device == NULL) {
-        return 0;
+    CHECK_DEVICE_MAGIC(device, SDL_FALSE);
+    if (fence == NULL) {
+        SDL_InvalidParamError("fence");
+        return SDL_FALSE;
     }
 
     return device->QueryFence(
@@ -1403,7 +1876,11 @@ void Refresh_ReleaseFence(
     Refresh_Device *device,
     Refresh_Fence *fence)
 {
-    NULL_ASSERT(device);
+    CHECK_DEVICE_MAGIC(device, );
+    if (fence == NULL) {
+        return;
+    }
+
     device->ReleaseFence(
         device->driverData,
         fence);

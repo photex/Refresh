@@ -100,17 +100,16 @@ static void METAL_INTERNAL_DestroyBlitResources(Refresh_Renderer *driverData);
 /* Conversions */
 
 static MTLPixelFormat RefreshToMetal_SurfaceFormat[] = {
-    MTLPixelFormatRGBA8Unorm,                 /* R8G8B8A8 */
-    MTLPixelFormatBGRA8Unorm,                 /* B8G8R8A8 */
-    MTLPixelFormatB5G6R5Unorm, /* R5G6B5 */   /* FIXME: Swizzle? */
-    MTLPixelFormatA1BGR5Unorm, /* A1R5G5B5 */ /* FIXME: Swizzle? */
-    MTLPixelFormatABGR4Unorm,                 /* B4G4R4A4 */
-    MTLPixelFormatRGB10A2Unorm,               /* A2R10G10B10 */
-    MTLPixelFormatBGR10A2Unorm,               /* A2B10G10R10 */
-    MTLPixelFormatRG16Unorm,                  /* R16G16 */
-    MTLPixelFormatRGBA16Unorm,                /* R16G16B16A16 */
-    MTLPixelFormatR8Unorm,                    /* R8 */
-    MTLPixelFormatA8Unorm,                    /* A8 */
+    MTLPixelFormatRGBA8Unorm,   /* R8G8B8A8 */
+    MTLPixelFormatBGRA8Unorm,   /* B8G8R8A8 */
+    MTLPixelFormatB5G6R5Unorm,  /* B5G6R5 */
+    MTLPixelFormatBGR5A1Unorm,  /* B5G5R5A1 */
+    MTLPixelFormatABGR4Unorm,   /* B4G4R4A4 */
+    MTLPixelFormatRGB10A2Unorm, /* A2R10G10B10 */
+    MTLPixelFormatRG16Unorm,    /* R16G16 */
+    MTLPixelFormatRGBA16Unorm,  /* R16G16B16A16 */
+    MTLPixelFormatR8Unorm,      /* R8 */
+    MTLPixelFormatA8Unorm,      /* A8 */
 #ifdef SDL_PLATFORM_MACOS
     MTLPixelFormatBC1_RGBA,      /* BC1 */
     MTLPixelFormatBC2_RGBA,      /* BC2 */
@@ -278,11 +277,18 @@ static MTLVertexStepFunction RefreshToMetal_StepFunction[] = {
     MTLVertexStepFunctionPerInstance,
 };
 
+static NSUInteger RefreshToMetal_SampleCount[] = {
+    1, /* REFRESH_SAMPLECOUNT_1 */
+    2, /* REFRESH_SAMPLECOUNT_2 */
+    4, /* REFRESH_SAMPLECOUNT_4 */
+    8  /* REFRESH_SAMPLECOUNT_8 */
+};
+
 static Refresh_TextureFormat SwapchainCompositionToFormat[] = {
     REFRESH_TEXTUREFORMAT_B8G8R8A8,            /* SDR */
     REFRESH_TEXTUREFORMAT_B8G8R8A8_SRGB,       /* SDR_LINEAR */
     REFRESH_TEXTUREFORMAT_R16G16B16A16_SFLOAT, /* HDR_EXTENDED_LINEAR */
-    REFRESH_TEXTUREFORMAT_A2B10G10R10,         /* HDR10_ST2048 */
+    REFRESH_TEXTUREFORMAT_R10G10B10A2,         /* HDR10_ST2048 */
 };
 
 static CFStringRef SwapchainCompositionToColorSpace[4]; /* initialized on device creation */
@@ -330,6 +336,7 @@ static MTLColorWriteMask RefreshToMetal_ColorWriteMask(
 typedef struct MetalTexture
 {
     id<MTLTexture> handle;
+    id<MTLTexture> msaaHandle;
     SDL_atomic_t referenceCount;
 } MetalTexture;
 
@@ -725,16 +732,14 @@ static MetalLibraryFunction METAL_INTERNAL_CompileShader(
     if (format == REFRESH_SHADERFORMAT_MSL) {
         library = [renderer->device
             newLibraryWithSource:@((const char *)code)
-                         options:nil /* FIXME: Do we need any compile options? */
+                         options:nil
                            error:&error];
     } else if (format == REFRESH_SHADERFORMAT_METALLIB) {
         data = dispatch_data_create(
             code,
             codeSize,
             dispatch_get_global_queue(0, 0),
-            ^{
-            } /* FIXME: is this right? */
-        );
+            ^{ /* do nothing */ });
         library = [renderer->device newLibraryWithData:data error:&error];
     } else {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Incompatible shader format for Metal");
@@ -968,7 +973,9 @@ static Refresh_GraphicsPipeline *METAL_CreateGraphicsPipeline(
         pipelineDescriptor.colorAttachments[i].destinationAlphaBlendFactor = RefreshToMetal_BlendFactor[blendState->dstAlphaBlendFactor];
     }
 
-    /* FIXME: Multisample */
+    /* Multisample */
+
+    pipelineDescriptor.rasterSampleCount = RefreshToMetal_SampleCount[pipelineCreateInfo->multisampleState.multisampleCount];
 
     /* Depth Stencil */
 
@@ -1254,38 +1261,52 @@ static MetalTexture *METAL_INTERNAL_CreateTexture(
 {
     MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor new];
     id<MTLTexture> texture;
+    id<MTLTexture> msaaTexture = NULL;
     MetalTexture *metalTexture;
 
-    /* FIXME: MSAA? */
-    if (textureCreateInfo->depth > 1) {
-        textureDescriptor.textureType = MTLTextureType3D;
-    } else if (textureCreateInfo->isCube) {
-        textureDescriptor.textureType = MTLTextureTypeCube;
+    if (textureCreateInfo->depth <= 1) {
+        if (textureCreateInfo->isCube) {
+            textureDescriptor.textureType = MTLTextureTypeCube;
+        } else if (textureCreateInfo->layerCount > 1) {
+            textureDescriptor.textureType = MTLTextureType2DArray;
+        } else {
+            textureDescriptor.textureType = MTLTextureType2D;
+        }
     } else {
-        textureDescriptor.textureType = MTLTextureType2D;
+        textureDescriptor.textureType = MTLTextureType3D;
     }
 
     textureDescriptor.pixelFormat = RefreshToMetal_SurfaceFormat[textureCreateInfo->format];
+    /* This format isn't natively supported so let's swizzle! */
+    if (textureCreateInfo->format == REFRESH_TEXTUREFORMAT_B4G4R4A4) {
+        textureDescriptor.swizzle = MTLTextureSwizzleChannelsMake(
+            MTLTextureSwizzleBlue,
+            MTLTextureSwizzleGreen,
+            MTLTextureSwizzleRed,
+            MTLTextureSwizzleAlpha);
+    }
+
     textureDescriptor.width = textureCreateInfo->width;
     textureDescriptor.height = textureCreateInfo->height;
     textureDescriptor.depth = textureCreateInfo->depth;
     textureDescriptor.mipmapLevelCount = textureCreateInfo->levelCount;
-    textureDescriptor.sampleCount = 1; /* FIXME */
-    textureDescriptor.arrayLength = 1; /* FIXME: Is this used outside of cubes? */
-    textureDescriptor.resourceOptions = MTLResourceCPUCacheModeDefaultCache | MTLResourceStorageModePrivate | MTLResourceHazardTrackingModeDefault;
-    textureDescriptor.allowGPUOptimizedContents = true;
+    textureDescriptor.sampleCount = 1;
+    textureDescriptor.arrayLength = (textureCreateInfo->isCube) ? 1 : textureCreateInfo->layerCount; /* FIXME: Cube arrays? */
+    textureDescriptor.storageMode = MTLStorageModePrivate;
 
     textureDescriptor.usage = 0;
-    if (textureCreateInfo->usageFlags & (REFRESH_TEXTUREUSAGE_COLOR_TARGET_BIT | REFRESH_TEXTUREUSAGE_DEPTH_STENCIL_TARGET_BIT)) {
+    if (textureCreateInfo->usageFlags & (REFRESH_TEXTUREUSAGE_COLOR_TARGET_BIT |
+                                         REFRESH_TEXTUREUSAGE_DEPTH_STENCIL_TARGET_BIT)) {
         textureDescriptor.usage |= MTLTextureUsageRenderTarget;
     }
-    if (textureCreateInfo->usageFlags & REFRESH_TEXTUREUSAGE_SAMPLER_BIT) {
+    if (textureCreateInfo->usageFlags & (REFRESH_TEXTUREUSAGE_SAMPLER_BIT |
+                                         REFRESH_TEXTUREUSAGE_GRAPHICS_STORAGE_READ_BIT |
+                                         REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_READ_BIT)) {
         textureDescriptor.usage |= MTLTextureUsageShaderRead;
     }
     if (textureCreateInfo->usageFlags & REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE_BIT) {
-        textureDescriptor.usage |= MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite;
+        textureDescriptor.usage |= MTLTextureUsageShaderWrite;
     }
-    /* FIXME: Other usages! */
 
     texture = [renderer->device newTextureWithDescriptor:textureDescriptor];
     if (texture == NULL) {
@@ -1293,8 +1314,23 @@ static MetalTexture *METAL_INTERNAL_CreateTexture(
         return NULL;
     }
 
+    /* Create the MSAA texture, if needed */
+    if (textureCreateInfo->sampleCount > REFRESH_SAMPLECOUNT_1 && textureDescriptor.textureType == MTLTextureType2D) {
+        textureDescriptor.textureType = MTLTextureType2DMultisample;
+        textureDescriptor.sampleCount = RefreshToMetal_SampleCount[textureCreateInfo->sampleCount];
+        textureDescriptor.usage = MTLTextureUsageRenderTarget;
+
+        msaaTexture = [renderer->device newTextureWithDescriptor:textureDescriptor];
+        if (msaaTexture == NULL) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create MSAA MTLTexture!");
+            return NULL;
+        }
+    }
+
     metalTexture = (MetalTexture *)SDL_malloc(sizeof(MetalTexture));
     metalTexture->handle = texture;
+    metalTexture->msaaHandle = msaaTexture;
+    SDL_AtomicSet(&metalTexture->referenceCount, 0);
     return metalTexture;
 }
 
@@ -2031,8 +2067,9 @@ static Refresh_CommandBuffer *METAL_AcquireCommandBuffer(
 }
 
 static MetalUniformBuffer *METAL_INTERNAL_AcquireUniformBufferFromPool(
-    MetalRenderer *renderer)
+    MetalCommandBuffer *commandBuffer)
 {
+    MetalRenderer *renderer = commandBuffer->renderer;
     MetalUniformBuffer *uniformBuffer;
 
     SDL_LockMutex(renderer->acquireUniformBufferLock);
@@ -2047,6 +2084,8 @@ static MetalUniformBuffer *METAL_INTERNAL_AcquireUniformBufferFromPool(
     }
 
     SDL_UnlockMutex(renderer->acquireUniformBufferLock);
+
+    METAL_INTERNAL_TrackUniformBuffer(commandBuffer, uniformBuffer);
 
     return uniformBuffer;
 }
@@ -2076,53 +2115,75 @@ static void METAL_BeginRenderPass(
     Refresh_DepthStencilAttachmentInfo *depthStencilAttachmentInfo)
 {
     MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
+    MetalRenderer *renderer = metalCommandBuffer->renderer;
     MTLRenderPassDescriptor *passDescriptor = [MTLRenderPassDescriptor renderPassDescriptor];
-    Refresh_ColorAttachmentInfo *attachmentInfo;
-    MetalTexture *texture;
     Uint32 vpWidth = UINT_MAX;
     Uint32 vpHeight = UINT_MAX;
     MTLViewport viewport;
     MTLScissorRect scissorRect;
 
     for (Uint32 i = 0; i < colorAttachmentCount; i += 1) {
-        attachmentInfo = &colorAttachmentInfos[i];
-        texture = ((MetalTextureContainer *)attachmentInfo->textureSlice.texture)->activeTexture;
+        MetalTextureContainer *container = (MetalTextureContainer *)colorAttachmentInfos[i].textureSlice.texture;
+        MetalTexture *texture = METAL_INTERNAL_PrepareTextureForWrite(
+            renderer,
+            container,
+            colorAttachmentInfos[i].cycle);
 
-        /* FIXME: cycle! */
-        passDescriptor.colorAttachments[i].texture = texture->handle;
-        passDescriptor.colorAttachments[i].level = attachmentInfo->textureSlice.mipLevel;
-        passDescriptor.colorAttachments[i].slice = attachmentInfo->textureSlice.layer;
+        if (texture->msaaHandle) {
+            passDescriptor.colorAttachments[i].texture = texture->msaaHandle;
+            passDescriptor.colorAttachments[i].resolveTexture = texture->handle;
+        } else {
+            passDescriptor.colorAttachments[i].texture = texture->handle;
+        }
+        passDescriptor.colorAttachments[i].level = colorAttachmentInfos[i].textureSlice.mipLevel;
+        passDescriptor.colorAttachments[i].slice = colorAttachmentInfos[i].textureSlice.layer;
         passDescriptor.colorAttachments[i].clearColor = MTLClearColorMake(
-            attachmentInfo->clearColor.r,
-            attachmentInfo->clearColor.g,
-            attachmentInfo->clearColor.b,
-            attachmentInfo->clearColor.a);
-        passDescriptor.colorAttachments[i].loadAction = RefreshToMetal_LoadOp[attachmentInfo->loadOp];
-        passDescriptor.colorAttachments[i].storeAction = RefreshToMetal_StoreOp(attachmentInfo->storeOp, 0);
-        /* FIXME: Resolve texture! Also affects ^! */
+            colorAttachmentInfos[i].clearColor.r,
+            colorAttachmentInfos[i].clearColor.g,
+            colorAttachmentInfos[i].clearColor.b,
+            colorAttachmentInfos[i].clearColor.a);
+        passDescriptor.colorAttachments[i].loadAction = RefreshToMetal_LoadOp[colorAttachmentInfos[i].loadOp];
+        passDescriptor.colorAttachments[i].storeAction = RefreshToMetal_StoreOp(
+            colorAttachmentInfos[i].storeOp,
+            texture->msaaHandle ? 1 : 0);
 
         METAL_INTERNAL_TrackTexture(metalCommandBuffer, texture);
     }
 
     if (depthStencilAttachmentInfo != NULL) {
         MetalTextureContainer *container = (MetalTextureContainer *)depthStencilAttachmentInfo->textureSlice.texture;
-        texture = container->activeTexture;
+        MetalTexture *texture = METAL_INTERNAL_PrepareTextureForWrite(
+            renderer,
+            container,
+            depthStencilAttachmentInfo->cycle);
 
-        /* FIXME: cycle! */
-        passDescriptor.depthAttachment.texture = texture->handle;
+        if (texture->msaaHandle) {
+            passDescriptor.depthAttachment.texture = texture->msaaHandle;
+            passDescriptor.depthAttachment.resolveTexture = texture->handle;
+        } else {
+            passDescriptor.depthAttachment.texture = texture->handle;
+        }
         passDescriptor.depthAttachment.level = depthStencilAttachmentInfo->textureSlice.mipLevel;
         passDescriptor.depthAttachment.slice = depthStencilAttachmentInfo->textureSlice.layer;
         passDescriptor.depthAttachment.loadAction = RefreshToMetal_LoadOp[depthStencilAttachmentInfo->loadOp];
-        passDescriptor.depthAttachment.storeAction = RefreshToMetal_StoreOp(depthStencilAttachmentInfo->storeOp, 0);
+        passDescriptor.depthAttachment.storeAction = RefreshToMetal_StoreOp(
+            depthStencilAttachmentInfo->storeOp,
+            texture->msaaHandle ? 1 : 0);
         passDescriptor.depthAttachment.clearDepth = depthStencilAttachmentInfo->depthStencilClearValue.depth;
 
         if (IsStencilFormat(container->createInfo.format)) {
-            /* FIXME: cycle! */
-            passDescriptor.stencilAttachment.texture = texture->handle;
+            if (texture->msaaHandle) {
+                passDescriptor.stencilAttachment.texture = texture->msaaHandle;
+                passDescriptor.stencilAttachment.resolveTexture = texture->handle;
+            } else {
+                passDescriptor.stencilAttachment.texture = texture->handle;
+            }
             passDescriptor.stencilAttachment.level = depthStencilAttachmentInfo->textureSlice.mipLevel;
             passDescriptor.stencilAttachment.slice = depthStencilAttachmentInfo->textureSlice.layer;
             passDescriptor.stencilAttachment.loadAction = RefreshToMetal_LoadOp[depthStencilAttachmentInfo->loadOp];
-            passDescriptor.stencilAttachment.storeAction = RefreshToMetal_StoreOp(depthStencilAttachmentInfo->storeOp, 0);
+            passDescriptor.stencilAttachment.storeAction = RefreshToMetal_StoreOp(
+                depthStencilAttachmentInfo->storeOp,
+                texture->msaaHandle ? 1 : 0);
             passDescriptor.stencilAttachment.clearStencil = depthStencilAttachmentInfo->depthStencilClearValue.stencil;
         }
 
@@ -2146,7 +2207,19 @@ static void METAL_BeginRenderPass(
         }
     }
 
-    /* FIXME: check depth/stencil attachment size too */
+    if (depthStencilAttachmentInfo != NULL) {
+        MetalTextureContainer *container = (MetalTextureContainer *)depthStencilAttachmentInfo->textureSlice.texture;
+        Uint32 w = container->createInfo.width >> depthStencilAttachmentInfo->textureSlice.mipLevel;
+        Uint32 h = container->createInfo.height >> depthStencilAttachmentInfo->textureSlice.mipLevel;
+
+        if (w < vpWidth) {
+            vpWidth = w;
+        }
+
+        if (h < vpHeight) {
+            vpHeight = h;
+        }
+    }
 
     /* Set default viewport and scissor state */
     viewport.originX = 0;
@@ -2203,14 +2276,14 @@ static void METAL_BindGraphicsPipeline(
     for (Uint32 i = 0; i < metalGraphicsPipeline->vertexUniformBufferCount; i += 1) {
         if (metalCommandBuffer->vertexUniformBuffers[i] == NULL) {
             metalCommandBuffer->vertexUniformBuffers[i] = METAL_INTERNAL_AcquireUniformBufferFromPool(
-                metalCommandBuffer->renderer);
+                metalCommandBuffer);
         }
     }
 
     for (Uint32 i = 0; i < metalGraphicsPipeline->fragmentUniformBufferCount; i += 1) {
         if (metalCommandBuffer->fragmentUniformBuffers[i] == NULL) {
             metalCommandBuffer->fragmentUniformBuffers[i] = METAL_INTERNAL_AcquireUniformBufferFromPool(
-                metalCommandBuffer->renderer);
+                metalCommandBuffer);
         }
     }
 
@@ -2476,10 +2549,6 @@ static void METAL_INTERNAL_BindGraphicsResources(
                 setVertexBuffer:commandBuffer->vertexUniformBuffers[i]->handle
                          offset:commandBuffer->vertexUniformBuffers[i]->drawOffset
                         atIndex:i];
-
-            METAL_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->vertexUniformBuffers[i]);
         }
 
         commandBuffer->needVertexUniformBind = SDL_FALSE;
@@ -2521,10 +2590,6 @@ static void METAL_INTERNAL_BindGraphicsResources(
                 setFragmentBuffer:commandBuffer->fragmentUniformBuffers[i]->handle
                            offset:commandBuffer->fragmentUniformBuffers[i]->drawOffset
                           atIndex:i];
-
-            METAL_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->fragmentUniformBuffers[i]);
         }
 
         commandBuffer->needFragmentUniformBind = SDL_FALSE;
@@ -2581,10 +2646,6 @@ static void METAL_INTERNAL_BindComputeResources(
                 setBuffer:commandBuffer->computeUniformBuffers[i]->handle
                    offset:commandBuffer->computeUniformBuffers[i]->drawOffset
                   atIndex:i];
-
-            METAL_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->computeUniformBuffers[i]);
         }
 
         commandBuffer->needComputeUniformBind = SDL_FALSE;
@@ -2704,19 +2765,19 @@ static void METAL_INTERNAL_PushUniformData(
     if (shaderStage == REFRESH_SHADERSTAGE_VERTEX) {
         if (metalCommandBuffer->vertexUniformBuffers[slotIndex] == NULL) {
             metalCommandBuffer->vertexUniformBuffers[slotIndex] = METAL_INTERNAL_AcquireUniformBufferFromPool(
-                metalCommandBuffer->renderer);
+                metalCommandBuffer);
         }
         metalUniformBuffer = metalCommandBuffer->vertexUniformBuffers[slotIndex];
     } else if (shaderStage == REFRESH_SHADERSTAGE_FRAGMENT) {
         if (metalCommandBuffer->fragmentUniformBuffers[slotIndex] == NULL) {
             metalCommandBuffer->fragmentUniformBuffers[slotIndex] = METAL_INTERNAL_AcquireUniformBufferFromPool(
-                metalCommandBuffer->renderer);
+                metalCommandBuffer);
         }
         metalUniformBuffer = metalCommandBuffer->fragmentUniformBuffers[slotIndex];
     } else if (shaderStage == REFRESH_SHADERSTAGE_COMPUTE) {
         if (metalCommandBuffer->computeUniformBuffers[slotIndex] == NULL) {
             metalCommandBuffer->computeUniformBuffers[slotIndex] = METAL_INTERNAL_AcquireUniformBufferFromPool(
-                metalCommandBuffer->renderer);
+                metalCommandBuffer);
         }
         metalUniformBuffer = metalCommandBuffer->computeUniformBuffers[slotIndex];
     } else {
@@ -2729,12 +2790,8 @@ static void METAL_INTERNAL_PushUniformData(
         256);
 
     if (metalUniformBuffer->writeOffset + alignedDataLength >= UNIFORM_BUFFER_SIZE) {
-        METAL_INTERNAL_TrackUniformBuffer(
-            metalCommandBuffer,
-            metalUniformBuffer);
-
         metalUniformBuffer = METAL_INTERNAL_AcquireUniformBufferFromPool(
-            metalCommandBuffer->renderer);
+            metalCommandBuffer);
 
         metalUniformBuffer->writeOffset = 0;
         metalUniformBuffer->drawOffset = 0;
@@ -2777,15 +2834,8 @@ static void METAL_PushVertexUniformData(
     const void *data,
     Uint32 dataLengthInBytes)
 {
-    MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
-
-    if (slotIndex >= metalCommandBuffer->graphicsPipeline->vertexUniformBufferCount) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No vertex uniforms exist on slot %i for this pipeline", slotIndex);
-        return;
-    }
-
     METAL_INTERNAL_PushUniformData(
-        metalCommandBuffer,
+        (MetalCommandBuffer *)commandBuffer,
         REFRESH_SHADERSTAGE_VERTEX,
         slotIndex,
         data,
@@ -2798,15 +2848,8 @@ static void METAL_PushFragmentUniformData(
     const void *data,
     Uint32 dataLengthInBytes)
 {
-    MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
-
-    if (slotIndex >= metalCommandBuffer->graphicsPipeline->fragmentUniformBufferCount) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No fragment uniforms exist on slot %i for this pipeline", slotIndex);
-        return;
-    }
-
     METAL_INTERNAL_PushUniformData(
-        metalCommandBuffer,
+        (MetalCommandBuffer *)commandBuffer,
         REFRESH_SHADERSTAGE_FRAGMENT,
         slotIndex,
         data,
@@ -2960,8 +3003,9 @@ static void METAL_Blit(
     METAL_BindGraphicsPipeline(commandBuffer, pipeline);
 
     textureSamplerBinding.texture = source->textureSlice.texture;
-    textureSamplerBinding.sampler =
-        filterMode == REFRESH_FILTER_NEAREST ? renderer->blitNearestSampler : renderer->blitLinearSampler;
+    textureSamplerBinding.sampler = (filterMode == REFRESH_FILTER_NEAREST)
+                                        ? renderer->blitNearestSampler
+                                        : renderer->blitLinearSampler;
 
     METAL_BindFragmentSamplers(
         commandBuffer,
@@ -3035,7 +3079,7 @@ static void METAL_BindComputePipeline(
     for (Uint32 i = 0; i < pipeline->uniformBufferCount; i += 1) {
         if (metalCommandBuffer->computeUniformBuffers[i] == NULL) {
             metalCommandBuffer->computeUniformBuffers[i] = METAL_INTERNAL_AcquireUniformBufferFromPool(
-                metalCommandBuffer->renderer);
+                metalCommandBuffer);
         }
     }
 
@@ -3094,15 +3138,8 @@ static void METAL_PushComputeUniformData(
     const void *data,
     Uint32 dataLengthInBytes)
 {
-    MetalCommandBuffer *metalCommandBuffer = (MetalCommandBuffer *)commandBuffer;
-
-    if (slotIndex >= metalCommandBuffer->computePipeline->uniformBufferCount) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "No compute uniforms exist on slot %i for this pipeline", slotIndex);
-        return;
-    }
-
     METAL_INTERNAL_PushUniformData(
-        metalCommandBuffer,
+        (MetalCommandBuffer *)commandBuffer,
         REFRESH_SHADERSTAGE_COMPUTE,
         slotIndex,
         data,
@@ -3361,7 +3398,7 @@ static Uint8 METAL_INTERNAL_CreateSwapchain(
 #endif
     windowData->layer.pixelFormat = RefreshToMetal_SurfaceFormat[SwapchainCompositionToFormat[swapchainComposition]];
 #ifndef SDL_PLATFORM_TVOS
-    windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != REFRESH_SWAPCHAINCOMPOSITION_SDR); /* FIXME: Metadata? */
+    windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != REFRESH_SWAPCHAINCOMPOSITION_SDR);
 #endif
 
     colorspace = CGColorSpaceCreateWithName(SwapchainCompositionToColorSpace[swapchainComposition]);
@@ -3380,8 +3417,7 @@ static Uint8 METAL_INTERNAL_CreateSwapchain(
     windowData->textureContainer.createInfo.levelCount = 1;
     windowData->textureContainer.createInfo.depth = 1;
     windowData->textureContainer.createInfo.isCube = 0;
-    windowData->textureContainer.createInfo.usageFlags =
-        REFRESH_TEXTUREUSAGE_COLOR_TARGET_BIT | REFRESH_TEXTUREUSAGE_SAMPLER_BIT | REFRESH_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE_BIT; /* FIXME: Other bits? */
+    windowData->textureContainer.createInfo.usageFlags = REFRESH_TEXTUREUSAGE_COLOR_TARGET_BIT | REFRESH_TEXTUREUSAGE_SAMPLER_BIT;
 
     drawableSize = windowData->layer.drawableSize;
     windowData->textureContainer.createInfo.width = (Uint32)drawableSize.width;
@@ -3572,7 +3608,7 @@ static SDL_bool METAL_SetSwapchainParameters(
 #endif
     windowData->layer.pixelFormat = RefreshToMetal_SurfaceFormat[SwapchainCompositionToFormat[swapchainComposition]];
 #ifndef SDL_PLATFORM_TVOS
-    windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != REFRESH_SWAPCHAINCOMPOSITION_SDR); /* FIXME: Metadata? */
+    windowData->layer.wantsExtendedDynamicRangeContent = (swapchainComposition != REFRESH_SWAPCHAINCOMPOSITION_SDR);
 #endif
 
     colorspace = CGColorSpaceCreateWithName(SwapchainCompositionToColorSpace[swapchainComposition]);
@@ -3692,8 +3728,8 @@ static SDL_bool METAL_IsTextureFormatSupported(
 
     switch (format) {
     /* Apple GPU exclusive */
-    case REFRESH_TEXTUREFORMAT_R5G6B5:
-    case REFRESH_TEXTUREFORMAT_A1R5G5B5:
+    case REFRESH_TEXTUREFORMAT_B5G6R5:
+    case REFRESH_TEXTUREFORMAT_B5G5R5A1:
     case REFRESH_TEXTUREFORMAT_B4G4R4A4:
         return ![renderer->device supportsFamily:MTLGPUFamilyMac2];
 
@@ -3702,6 +3738,8 @@ static SDL_bool METAL_IsTextureFormatSupported(
     case REFRESH_TEXTUREFORMAT_BC2:
     case REFRESH_TEXTUREFORMAT_BC3:
     case REFRESH_TEXTUREFORMAT_BC7:
+    case REFRESH_TEXTUREFORMAT_BC3_SRGB:
+    case REFRESH_TEXTUREFORMAT_BC7_SRGB:
 #ifdef SDL_PLATFORM_MACOS
         if (@available(macOS 11.0, *)) {
             return (
@@ -3711,6 +3749,7 @@ static SDL_bool METAL_IsTextureFormatSupported(
             return SDL_FALSE;
         }
 #else
+        /* FIXME: iOS 16.4+ allows these formats! */
         return SDL_FALSE;
 #endif
 
@@ -3832,7 +3871,7 @@ static void METAL_INTERNAL_DestroyBlitResources(
     SDL_free(renderer->blitPipelines);
 }
 
-static Refresh_Device *METAL_CreateDevice(SDL_bool debugMode)
+static Refresh_Device *METAL_CreateDevice(SDL_bool debugMode, SDL_bool preferLowPower)
 {
     MetalRenderer *renderer;
 
@@ -3840,7 +3879,20 @@ static Refresh_Device *METAL_CreateDevice(SDL_bool debugMode)
     renderer = (MetalRenderer *)SDL_calloc(1, sizeof(MetalRenderer));
 
     /* Create the Metal device and command queue */
-    renderer->device = MTLCreateSystemDefaultDevice();
+#ifdef SDL_PLATFORM_MACOS
+    if (preferLowPower) {
+        NSArray<id<MTLDevice>> *devices = MTLCopyAllDevices();
+        for (id<MTLDevice> device in devices) {
+            if (device.isLowPower) {
+                renderer->device = device;
+                break;
+            }
+        }
+    }
+#endif
+    if (renderer->device == NULL) {
+        renderer->device = MTLCreateSystemDefaultDevice();
+    }
     renderer->queue = [renderer->device newCommandQueue];
 
     /* Print driver info */

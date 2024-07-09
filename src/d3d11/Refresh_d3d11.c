@@ -101,7 +101,7 @@ typedef HRESULT(WINAPI *PFN_CREATE_DXGI_FACTORY1)(const GUID *riid, void **ppFac
 typedef HRESULT(WINAPI *PFN_DXGI_GET_DEBUG_INTERFACE)(const GUID *riid, void **ppDebug);
 typedef HRESULT(D3DCOMPILER_API *PFN_D3DCOMPILE)(LPCVOID pSrcData, SIZE_T SrcDataSize, LPCSTR pSourceName, const D3D_SHADER_MACRO *pDefines, ID3DInclude *pInclude, LPCSTR pEntrypoint, LPCSTR pTarget, UINT Flags1, UINT Flags2, ID3DBlob **ppCode, ID3DBlob **ppErrorMsgs);
 
-/* IIDs (from https://magnumdb.com) */
+/* IIDs (from https://www.magnumdb.com/) */
 static const IID D3D_IID_IDXGIFactory1 = { 0x770aae78, 0xf26f, 0x4dba, { 0xa8, 0x29, 0x25, 0x3c, 0x83, 0xd1, 0xb3, 0x87 } };
 static const IID D3D_IID_IDXGIFactory4 = { 0x1bc6ea02, 0xef36, 0x464f, { 0xbf, 0x0c, 0x21, 0xca, 0x39, 0xe5, 0x16, 0x8a } };
 static const IID D3D_IID_IDXGIFactory5 = { 0x7632e1f5, 0xee65, 0x4dca, { 0x87, 0xfd, 0x84, 0xcd, 0x75, 0xf8, 0x83, 0x8d } };
@@ -230,44 +230,43 @@ static DXGI_COLOR_SPACE_TYPE SwapchainCompositionToColorSpace[] = {
 };
 
 static DXGI_FORMAT RefreshToD3D11_TextureFormat[] = {
-    DXGI_FORMAT_R8G8B8A8_UNORM,                /* R8G8B8A8 */
-    DXGI_FORMAT_B8G8R8A8_UNORM,                /* B8G8R8A8 */
-    DXGI_FORMAT_B5G6R5_UNORM, /* R5G6B5 */     /* FIXME: Swizzle? */
-    DXGI_FORMAT_B5G5R5A1_UNORM, /* A1R5G5B5 */ /* FIXME: Swizzle? */
-    DXGI_FORMAT_B4G4R4A4_UNORM,                /* B4G4R4A4 */
-    DXGI_FORMAT_R10G10B10A2_UNORM,             /* A2R10G10B10 */
-    DXGI_FORMAT_UNKNOWN, /* A2B10G10R10 */     /* UNSUPPORTED BY D3D11 */
-    DXGI_FORMAT_R16G16_UNORM,                  /* R16G16 */
-    DXGI_FORMAT_R16G16B16A16_UNORM,            /* R16G16B16A16 */
-    DXGI_FORMAT_R8_UNORM,                      /* R8 */
-    DXGI_FORMAT_A8_UNORM,                      /* A8 */
-    DXGI_FORMAT_BC1_UNORM,                     /* BC1 */
-    DXGI_FORMAT_BC2_UNORM,                     /* BC2 */
-    DXGI_FORMAT_BC3_UNORM,                     /* BC3 */
-    DXGI_FORMAT_BC7_UNORM,                     /* BC7 */
-    DXGI_FORMAT_R8G8_SNORM,                    /* R8G8_SNORM */
-    DXGI_FORMAT_R8G8B8A8_SNORM,                /* R8G8B8A8_SNORM */
-    DXGI_FORMAT_R16_FLOAT,                     /* R16_SFLOAT */
-    DXGI_FORMAT_R16G16_FLOAT,                  /* R16G16_SFLOAT */
-    DXGI_FORMAT_R16G16B16A16_FLOAT,            /* R16G16B16A16_SFLOAT */
-    DXGI_FORMAT_R32_FLOAT,                     /* R32_SFLOAT */
-    DXGI_FORMAT_R32G32_FLOAT,                  /* R32G32_SFLOAT */
-    DXGI_FORMAT_R32G32B32A32_FLOAT,            /* R32G32B32A32_SFLOAT */
-    DXGI_FORMAT_R8_UINT,                       /* R8_UINT */
-    DXGI_FORMAT_R8G8_UINT,                     /* R8G8_UINT */
-    DXGI_FORMAT_R8G8B8A8_UINT,                 /* R8G8B8A8_UINT */
-    DXGI_FORMAT_R16_UINT,                      /* R16_UINT */
-    DXGI_FORMAT_R16G16_UINT,                   /* R16G16_UINT */
-    DXGI_FORMAT_R16G16B16A16_UINT,             /* R16G16B16A16_UINT */
-    DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,           /* R8G8B8A8_SRGB */
-    DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,           /* B8G8R8A8_SRGB */
-    DXGI_FORMAT_BC3_UNORM_SRGB,                /* BC3_SRGB */
-    DXGI_FORMAT_BC7_UNORM_SRGB,                /* BC7_SRGB */
-    DXGI_FORMAT_D16_UNORM,                     /* D16_UNORM */
-    DXGI_FORMAT_D24_UNORM_S8_UINT,             /* D24_UNORM */
-    DXGI_FORMAT_D32_FLOAT,                     /* D32_SFLOAT */
-    DXGI_FORMAT_D24_UNORM_S8_UINT,             /* D24_UNORM_S8_UINT */
-    DXGI_FORMAT_D32_FLOAT_S8X24_UINT,          /* D32_SFLOAT_S8_UINT */
+    DXGI_FORMAT_R8G8B8A8_UNORM,       /* R8G8B8A8 */
+    DXGI_FORMAT_B8G8R8A8_UNORM,       /* B8G8R8A8 */
+    DXGI_FORMAT_B5G6R5_UNORM,         /* B5G6R5 */
+    DXGI_FORMAT_B5G5R5A1_UNORM,       /* B5G5R5A1 */
+    DXGI_FORMAT_B4G4R4A4_UNORM,       /* B4G4R4A4 */
+    DXGI_FORMAT_R10G10B10A2_UNORM,    /* R10G10B10A2 */
+    DXGI_FORMAT_R16G16_UNORM,         /* R16G16 */
+    DXGI_FORMAT_R16G16B16A16_UNORM,   /* R16G16B16A16 */
+    DXGI_FORMAT_R8_UNORM,             /* R8 */
+    DXGI_FORMAT_A8_UNORM,             /* A8 */
+    DXGI_FORMAT_BC1_UNORM,            /* BC1 */
+    DXGI_FORMAT_BC2_UNORM,            /* BC2 */
+    DXGI_FORMAT_BC3_UNORM,            /* BC3 */
+    DXGI_FORMAT_BC7_UNORM,            /* BC7 */
+    DXGI_FORMAT_R8G8_SNORM,           /* R8G8_SNORM */
+    DXGI_FORMAT_R8G8B8A8_SNORM,       /* R8G8B8A8_SNORM */
+    DXGI_FORMAT_R16_FLOAT,            /* R16_SFLOAT */
+    DXGI_FORMAT_R16G16_FLOAT,         /* R16G16_SFLOAT */
+    DXGI_FORMAT_R16G16B16A16_FLOAT,   /* R16G16B16A16_SFLOAT */
+    DXGI_FORMAT_R32_FLOAT,            /* R32_SFLOAT */
+    DXGI_FORMAT_R32G32_FLOAT,         /* R32G32_SFLOAT */
+    DXGI_FORMAT_R32G32B32A32_FLOAT,   /* R32G32B32A32_SFLOAT */
+    DXGI_FORMAT_R8_UINT,              /* R8_UINT */
+    DXGI_FORMAT_R8G8_UINT,            /* R8G8_UINT */
+    DXGI_FORMAT_R8G8B8A8_UINT,        /* R8G8B8A8_UINT */
+    DXGI_FORMAT_R16_UINT,             /* R16_UINT */
+    DXGI_FORMAT_R16G16_UINT,          /* R16G16_UINT */
+    DXGI_FORMAT_R16G16B16A16_UINT,    /* R16G16B16A16_UINT */
+    DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,  /* R8G8B8A8_SRGB */
+    DXGI_FORMAT_B8G8R8A8_UNORM_SRGB,  /* B8G8R8A8_SRGB */
+    DXGI_FORMAT_BC3_UNORM_SRGB,       /* BC3_SRGB */
+    DXGI_FORMAT_BC7_UNORM_SRGB,       /* BC7_SRGB */
+    DXGI_FORMAT_D16_UNORM,            /* D16_UNORM */
+    DXGI_FORMAT_D24_UNORM_S8_UINT,    /* D24_UNORM */
+    DXGI_FORMAT_D32_FLOAT,            /* D32_SFLOAT */
+    DXGI_FORMAT_D24_UNORM_S8_UINT,    /* D24_UNORM_S8_UINT */
+    DXGI_FORMAT_D32_FLOAT_S8X24_UINT, /* D32_SFLOAT_S8_UINT */
 };
 
 static DXGI_FORMAT RefreshToD3D11_VertexFormat[] = {
@@ -3362,8 +3361,10 @@ static Refresh_CommandBuffer *D3D11_AcquireCommandBuffer(
     return (Refresh_CommandBuffer *)commandBuffer;
 }
 
-static D3D11UniformBuffer *D3D11_INTERNAL_AcquireUniformBufferFromPool(D3D11Renderer *renderer)
+static D3D11UniformBuffer *D3D11_INTERNAL_AcquireUniformBufferFromPool(
+    D3D11CommandBuffer *commandBuffer)
 {
+    D3D11Renderer *renderer = commandBuffer->renderer;
     D3D11UniformBuffer *uniformBuffer;
 
     SDL_LockMutex(renderer->acquireUniformBufferLock);
@@ -3378,6 +3379,8 @@ static D3D11UniformBuffer *D3D11_INTERNAL_AcquireUniformBufferFromPool(D3D11Rend
     }
 
     SDL_UnlockMutex(renderer->acquireUniformBufferLock);
+
+    D3D11_INTERNAL_TrackUniformBuffer(commandBuffer, uniformBuffer);
 
     return uniformBuffer;
 }
@@ -3416,19 +3419,19 @@ static void D3D11_INTERNAL_PushUniformData(
     if (shaderStage == REFRESH_SHADERSTAGE_VERTEX) {
         if (d3d11CommandBuffer->vertexUniformBuffers[slotIndex] == NULL) {
             d3d11CommandBuffer->vertexUniformBuffers[slotIndex] = D3D11_INTERNAL_AcquireUniformBufferFromPool(
-                d3d11CommandBuffer->renderer);
+                d3d11CommandBuffer);
         }
         d3d11UniformBuffer = d3d11CommandBuffer->vertexUniformBuffers[slotIndex];
     } else if (shaderStage == REFRESH_SHADERSTAGE_FRAGMENT) {
         if (d3d11CommandBuffer->fragmentUniformBuffers[slotIndex] == NULL) {
             d3d11CommandBuffer->fragmentUniformBuffers[slotIndex] = D3D11_INTERNAL_AcquireUniformBufferFromPool(
-                d3d11CommandBuffer->renderer);
+                d3d11CommandBuffer);
         }
         d3d11UniformBuffer = d3d11CommandBuffer->fragmentUniformBuffers[slotIndex];
     } else if (shaderStage == REFRESH_SHADERSTAGE_COMPUTE) {
         if (d3d11CommandBuffer->computeUniformBuffers[slotIndex] == NULL) {
             d3d11CommandBuffer->computeUniformBuffers[slotIndex] = D3D11_INTERNAL_AcquireUniformBufferFromPool(
-                d3d11CommandBuffer->renderer);
+                d3d11CommandBuffer);
         }
         d3d11UniformBuffer = d3d11CommandBuffer->computeUniformBuffers[slotIndex];
     } else {
@@ -3449,11 +3452,7 @@ static void D3D11_INTERNAL_PushUniformData(
             0);
         d3d11UniformBuffer->mappedData = NULL;
 
-        D3D11_INTERNAL_TrackUniformBuffer(
-            d3d11CommandBuffer,
-            d3d11UniformBuffer);
-
-        d3d11UniformBuffer = D3D11_INTERNAL_AcquireUniformBufferFromPool(d3d11CommandBuffer->renderer);
+        d3d11UniformBuffer = D3D11_INTERNAL_AcquireUniformBufferFromPool(d3d11CommandBuffer);
 
         d3d11UniformBuffer->drawOffset = 0;
         d3d11UniformBuffer->writeOffset = 0;
@@ -3715,14 +3714,14 @@ static void D3D11_BindGraphicsPipeline(
     for (Uint32 i = 0; i < pipeline->vertexUniformBufferCount; i += 1) {
         if (d3d11CommandBuffer->vertexUniformBuffers[i] == NULL) {
             d3d11CommandBuffer->vertexUniformBuffers[i] = D3D11_INTERNAL_AcquireUniformBufferFromPool(
-                d3d11CommandBuffer->renderer);
+                d3d11CommandBuffer);
         }
     }
 
     for (Uint32 i = 0; i < pipeline->fragmentUniformBufferCount; i += 1) {
         if (d3d11CommandBuffer->fragmentUniformBuffers[i] == NULL) {
             d3d11CommandBuffer->fragmentUniformBuffers[i] = D3D11_INTERNAL_AcquireUniformBufferFromPool(
-                d3d11CommandBuffer->renderer);
+                d3d11CommandBuffer);
         }
     }
 
@@ -4043,10 +4042,6 @@ static void D3D11_INTERNAL_BindGraphicsResources(
                 &commandBuffer->vertexUniformBuffers[i]->buffer,
                 &offsetInConstants,
                 &blockSizeInConstants);
-
-            D3D11_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->vertexUniformBuffers[i]);
         }
 
         commandBuffer->needVertexUniformBufferBind = SDL_FALSE;
@@ -4097,10 +4092,6 @@ static void D3D11_INTERNAL_BindGraphicsResources(
                 &commandBuffer->fragmentUniformBuffers[i]->buffer,
                 &offsetInConstants,
                 &blockSizeInConstants);
-
-            D3D11_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->fragmentUniformBuffers[i]);
         }
 
         commandBuffer->needFragmentUniformBufferBind = SDL_FALSE;
@@ -4425,7 +4416,7 @@ static void D3D11_BindComputePipeline(
     for (Uint32 i = 0; i < pipeline->uniformBufferCount; i += 1) {
         if (d3d11CommandBuffer->computeUniformBuffers[i] == NULL) {
             d3d11CommandBuffer->computeUniformBuffers[i] = D3D11_INTERNAL_AcquireUniformBufferFromPool(
-                d3d11CommandBuffer->renderer);
+                d3d11CommandBuffer);
         }
     }
 
@@ -4557,10 +4548,6 @@ static void D3D11_INTERNAL_BindComputeResources(
                 &commandBuffer->computeUniformBuffers[i]->buffer,
                 &offsetInConstants,
                 &blockSizeInConstants);
-
-            D3D11_INTERNAL_TrackUniformBuffer(
-                commandBuffer,
-                commandBuffer->computeUniformBuffers[i]);
         }
         commandBuffer->needComputeUniformBufferBind = SDL_FALSE;
     }
@@ -5529,7 +5516,7 @@ static Refresh_TextureFormat D3D11_GetSwapchainTextureFormat(
         return REFRESH_TEXTUREFORMAT_R16G16B16A16_SFLOAT;
 
     case DXGI_FORMAT_R10G10B10A2_UNORM:
-        return REFRESH_TEXTUREFORMAT_A2R10G10B10;
+        return REFRESH_TEXTUREFORMAT_R10G10B10A2;
 
     default:
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unrecognized swapchain format!");
@@ -5849,7 +5836,7 @@ static SDL_bool D3D11_PrepareDriver()
     SDL_UnloadObject(d3d11_dll);
 
     if (FAILED(res)) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "D3D11: Could not create D3D11Device with feature level 11_0");
+        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "D3D11: Could not create D3D11Device with feature level 11_1");
         return SDL_FALSE;
     }
 
@@ -6084,7 +6071,7 @@ static void D3D11_INTERNAL_DestroyBlitPipelines(
     D3D11_ReleaseGraphicsPipeline(driverData, renderer->blitFrom2DArrayPipeline);
 }
 
-static Refresh_Device *D3D11_CreateDevice(SDL_bool debugMode)
+static Refresh_Device *D3D11_CreateDevice(SDL_bool debugMode, SDL_bool preferLowPower)
 {
     D3D11Renderer *renderer;
     PFN_CREATE_DXGI_FACTORY1 CreateDXGIFactoryFunc;
@@ -6172,7 +6159,7 @@ static Refresh_Device *D3D11_CreateDevice(SDL_bool debugMode)
         IDXGIFactory6_EnumAdapterByGpuPreference(
             factory6,
             0,
-            DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+            preferLowPower ? DXGI_GPU_PREFERENCE_MINIMUM_POWER : DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
             &D3D_IID_IDXGIAdapter1,
             (void **)&renderer->adapter);
         IDXGIFactory6_Release(factory6);
