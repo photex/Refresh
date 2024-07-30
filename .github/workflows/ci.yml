@@ -29,6 +29,12 @@ jobs:
     - name: Build (Release)
       run: ninja -C release
 
+    - name: Update Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: refresh2
+        path: release/libRefresh.so*
+
   macos:
     name: macOS (CMake)
     runs-on: macos-latest
