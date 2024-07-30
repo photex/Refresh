@@ -7,7 +7,7 @@ jobs:
     name: Linux
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -42,7 +42,7 @@ jobs:
       CXXFLAGS: -I/usr/local/include/SDL2
       LDFLAGS: -L/usr/local/lib
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -73,7 +73,7 @@ jobs:
     env:
       SDL_VERSION: 2.26.0
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -122,7 +122,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
 
@@ -153,7 +153,7 @@ jobs:
     runs-on: ubuntu-latest
     name: FreeBSD
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Build
