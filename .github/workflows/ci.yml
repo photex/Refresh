@@ -93,35 +93,27 @@ jobs:
             Expand-Archive C:\SDL.zip -DestinationPath C:\
         }
 
-    - name: CMake configure (Debug)
+    - name: CMake configure
       run: |
         $env:LDFLAGS =  "/LIBPATH:C:\SDL2-$env:SDL_VERSION\lib\x86 "
-        cmake -B debug -G "Visual Studio 17 2022" . -DCMAKE_BUILD_TYPE=Debug `
-          -A Win32 `
-          -DSDL2_INCLUDE_DIRS="C:\SDL2-$env:SDL_VERSION\include" `
-          -DSDL2_LIBRARIES="SDL2;SDL2main"
-
-    - name: Build (Debug)
-      run: cmake --build debug
-
-    - name: CMake configure (Release)
-      run: |
-        $env:LDFLAGS =  "/LIBPATH:C:\SDL2-$env:SDL_VERSION\lib\x86 "
-        cmake -B release -G "Visual Studio 17 2022" . -DCMAKE_BUILD_TYPE=Release `
+        cmake -B build -G "Visual Studio 17 2022" . `
           -A Win32 `
           -DSDL2_INCLUDE_DIRS="C:\SDL2-$env:SDL_VERSION\include" `
           -DSDL2_LIBRARIES="SDL2;SDL2main"
 
     - name: Build (Release)
-      run: cmake --build release
+      run: cmake --build build --config Release
+      
+    - name: Build (Debug)
+      run: cmake --build build --config Debug
 
     - name: Update Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: refresh2-msvc
         path: |
-          release/Refresh.dll
-          release/Refresh.lib
+          build/Release/Refresh.dll
+          build/Release/Refresh.lib
 
   windows-mingw:
     name: Windows (MinGW)
