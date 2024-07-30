@@ -32,7 +32,7 @@ jobs:
     - name: Update Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: refresh2
+        name: refresh2-linux-x64
         path: release/libRefresh.so*
 
   macos:
@@ -64,7 +64,7 @@ jobs:
     - name: Update Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: refresh2
+        name: refresh2-macos
         path: release/libRefresh.*
 
   windows-msvc:
