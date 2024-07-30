@@ -115,6 +115,14 @@ jobs:
     - name: Build (Release)
       run: cmake --build release
 
+    - name: Update Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: refresh2-msvc
+        path: |
+          release/Refresh.dll
+          release/Refresh.lib
+
   windows-mingw:
     name: Windows (MinGW)
     runs-on: windows-latest
