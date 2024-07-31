@@ -35,6 +35,12 @@ jobs:
         name: refresh2-linux-x64
         path: release/libRefresh.so*
 
+    - name: Update Debug Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: refresh2-linux-x64-debug
+        path: debug/libRefresh.so*
+
   macos:
     name: macOS (CMake)
     runs-on: macos-latest
